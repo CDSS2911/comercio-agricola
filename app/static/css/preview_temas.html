@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Preview de Temas - Sistema de Gestión</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    <!-- Descomentar para probar temas alternativos -->
+    <!-- <link rel="stylesheet" href="theme-red-intense.css"> -->
+    <!-- <link rel="stylesheet" href="theme-wine.css"> -->
+</head>
+<body>
+    <!-- Navegación -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container">
+            <a class="navbar-brand" href="#">
+                <i class="fas fa-users me-2"></i>Sistema de Gestión
+            </a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link active" href="#">Inicio</a>
+                <a class="nav-link" href="#">Dashboard</a>
+                <a class="nav-link" href="#">Inventario</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Contenido Principal -->
+    <div class="container mt-4">
+        <!-- Hero Section -->
+        <div class="jumbotron text-white p-5 mb-4">
+            <h1 class="display-4">Sistema de Gestión de Granja</h1>
+            <p class="lead">Tema: Negro, Rojo y Blanco</p>
+            <hr class="my-4" style="border-color: rgba(255,255,255,0.3)">
+            <p>Controla tu producción avícola de manera eficiente</p>
+        </div>
+
+        <!-- Alertas -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <h3 class="mb-3"><i class="fas fa-bell"></i> Alertas</h3>
+            </div>
+            <div class="col-md-6 mb-3">
+                <div class="alert alert-success">
+                    <i class="fas fa-check-circle"></i> <strong>¡Éxito!</strong> Operación completada correctamente.
+                </div>
+            </div>
+            <div class="col-md-6 mb-3">
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle"></i> <strong>¡Atención!</strong> Alerta crítica.
+                </div>
+            </div>
+            <div class="col-md-6 mb-3">
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-circle"></i> <strong>Advertencia:</strong> Revisar inventario.
+                </div>
+            </div>
+            <div class="col-md-6 mb-3">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i> <strong>Información:</strong> Nueva actualización disponible.
+                </div>
+            </div>
+        </div>
+
+        <!-- Tarjetas de Estadísticas -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <h3 class="mb-3"><i class="fas fa-chart-bar"></i> Estadísticas</h3>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card text-white bg-primary">
+                    <div class="card-body text-center">
+                        <h2>150</h2>
+                        <p class="mb-0">Gallinas Activas</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card text-white bg-success">
+                    <div class="card-body text-center">
+                        <h2>1,234</h2>
+                        <p class="mb-0">Huevos Recolectados</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card text-white bg-warning">
+                    <div class="card-body text-center">
+                        <h2>5</h2>
+                        <p class="mb-0">Alertas Pendientes</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card text-white bg-danger">
+                    <div class="card-body text-center">
+                        <h2>2</h2>
+                        <p class="mb-0">Crítico</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Botones -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <h3 class="mb-3"><i class="fas fa-mouse-pointer"></i> Botones</h3>
+            </div>
+            <div class="col-12 mb-3">
+                <button class="btn btn-primary me-2 mb-2"><i class="fas fa-plus"></i> Primario</button>
+                <button class="btn btn-secondary me-2 mb-2"><i class="fas fa-cog"></i> Secundario</button>
+                <button class="btn btn-success me-2 mb-2"><i class="fas fa-check"></i> Éxito</button>
+                <button class="btn btn-danger me-2 mb-2"><i class="fas fa-trash"></i> Peligro</button>
+                <button class="btn btn-warning me-2 mb-2"><i class="fas fa-exclamation"></i> Advertencia</button>
+                <button class="btn btn-info me-2 mb-2"><i class="fas fa-info"></i> Info</button>
+                <button class="btn btn-outline-primary me-2 mb-2"><i class="fas fa-edit"></i> Outline</button>
+            </div>
+        </div>
+
+        <!-- Formularios -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <h3 class="mb-3"><i class="fas fa-edit"></i> Formularios</h3>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fas fa-user"></i> Datos del Usuario
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label required">Nombre</label>
+                            <input type="text" class="form-control" placeholder="Ingrese su nombre">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Email</label>
+                            <input type="email" class="form-control" placeholder="correo@ejemplo.com">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Tipo de Usuario</label>
+                            <select class="form-select">
+                                <option>Administrador</option>
+                                <option selected>Usuario</option>
+                                <option>Invitado</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-primary w-100">
+                            <i class="fas fa-save"></i> Guardar
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fas fa-chart-line"></i> Progreso de Producción
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">Semana 1 - Completo</label>
+                            <div class="progress">
+                                <div class="progress-bar bg-success" style="width: 100%">100%</div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Semana 2 - En Progreso</label>
+                            <div class="progress">
+                                <div class="progress-bar" style="width: 65%">65%</div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Semana 3 - Bajo</label>
+                            <div class="progress">
+                                <div class="progress-bar bg-warning" style="width: 35%">35%</div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Semana 4 - Crítico</label>
+                            <div class="progress">
+                                <div class="progress-bar bg-danger" style="width: 15%">15%</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabla -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <h3 class="mb-3"><i class="fas fa-table"></i> Tabla de Datos</h3>
+            </div>
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fas fa-list"></i> Lotes de Gallinas
+                    </div>
+                    <div class="card-body">
+                        <table class="table table-striped table-hover">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Lote</th>
+                                    <th>Cantidad</th>
+                                    <th>Semanas</th>
+                                    <th>Estado</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>1</td>
+                                    <td>Galpón 1</td>
+                                    <td><span class="badge bg-primary">150</span></td>
+                                    <td>24 / 26</td>
+                                    <td><span class="badge bg-danger">CRÍTICO</span></td>
+                                    <td>
+                                        <button class="btn btn-sm btn-info"><i class="fas fa-eye"></i></button>
+                                        <button class="btn btn-sm btn-warning"><i class="fas fa-edit"></i></button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>2</td>
+                                    <td>Galpón 2</td>
+                                    <td><span class="badge bg-primary">200</span></td>
+                                    <td>18 / 26</td>
+                                    <td><span class="badge bg-success">ACTIVO</span></td>
+                                    <td>
+                                        <button class="btn btn-sm btn-info"><i class="fas fa-eye"></i></button>
+                                        <button class="btn btn-sm btn-warning"><i class="fas fa-edit"></i></button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>3</td>
+                                    <td>Galpón 3</td>
+                                    <td><span class="badge bg-primary">175</span></td>
+                                    <td>22 / 26</td>
+                                    <td><span class="badge bg-warning">ALTO</span></td>
+                                    <td>
+                                        <button class="btn btn-sm btn-info"><i class="fas fa-eye"></i></button>
+                                        <button class="btn btn-sm btn-warning"><i class="fas fa-edit"></i></button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Badges -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <h3 class="mb-3"><i class="fas fa-tags"></i> Badges</h3>
+            </div>
+            <div class="col-12">
+                <span class="badge bg-primary me-2 mb-2">Primario</span>
+                <span class="badge bg-secondary me-2 mb-2">Secundario</span>
+                <span class="badge bg-success me-2 mb-2">Éxito</span>
+                <span class="badge bg-danger me-2 mb-2">Peligro</span>
+                <span class="badge bg-warning me-2 mb-2">Advertencia</span>
+                <span class="badge bg-info me-2 mb-2">Info</span>
+                <span class="badge bg-dark me-2 mb-2">Oscuro</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="text-center py-3 mt-5">
+        <div class="container">
+            <p class="mb-0">&copy; 2025 Sistema de Gestión de Granja. Todos los derechos reservados.</p>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

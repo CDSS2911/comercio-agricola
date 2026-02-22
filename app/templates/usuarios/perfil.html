@@ -1,0 +1,416 @@
+{% extends "base.html" %}
+
+{% block title %}Mi Perfil{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h2><i class="fas fa-user-edit me-2"></i>Mi Perfil</h2>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">Inicio</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Mi Perfil</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Panel de información del usuario -->
+        <div class="col-lg-4">
+            <div class="card shadow mb-4">
+                <div class="card-body text-center">
+                    <div class="profile-avatar mb-3">
+                        <i class="fas fa-user-circle fa-5x text-primary"></i>
+                    </div>
+                    <h4 class="mb-1">{{ current_user.get_full_name() }}</h4>
+                    <p class="text-muted mb-3">@{{ current_user.username }}</p>
+                    
+                    <div class="mb-3">
+                        {% if current_user.is_admin %}
+                            <span class="badge bg-danger mb-1">Administrador</span>
+                        {% endif %}
+                        {% if current_user.is_vendedor %}
+                            <span class="badge bg-success mb-1">Vendedor</span>
+                        {% endif %}
+                        {% if current_user.is_contador %}
+                            <span class="badge bg-info mb-1">Contador</span>
+                        {% endif %}
+                        {% if not current_user.email_confirmed %}
+                            <span class="badge bg-warning mb-1">Email no confirmado</span>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <small class="text-muted">Miembro desde</small>
+                            <div><strong>{{ current_user.created_at.strftime('%d/%m/%Y') }}</strong></div>
+                        </div>
+                        <div class="col-6">
+                            <small class="text-muted">Último acceso</small>
+                            <div>
+                                <strong>
+                                    {% if current_user.last_login %}
+                                        {{ current_user.last_login.strftime('%d/%m/%Y') }}
+                                    {% else %}
+                                        Primera vez
+                                    {% endif %}
+                                </strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Panel de acciones rápidas -->
+            <div class="card shadow">
+                <div class="card-header">
+                    <h6 class="m-0 font-weight-bold text-primary">Acciones</h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#cambiarPasswordModal">
+                            <i class="fas fa-key me-2"></i>Cambiar Contraseña
+                        </button>
+                        
+                        {% if not current_user.email_confirmed %}
+                        <button type="button" class="btn btn-warning" onclick="reenviarConfirmacion()">
+                            <i class="fas fa-envelope me-2"></i>Reenviar Confirmación
+                        </button>
+                        {% endif %}
+                        
+                        <a href="{{ url_for('main.dashboard') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-left me-2"></i>Volver al Dashboard
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Formulario de edición -->
+        <div class="col-lg-8">
+            <div class="card shadow">
+                <div class="card-header">
+                    <h6 class="m-0 font-weight-bold text-primary">Editar Información Personal</h6>
+                </div>
+                <div class="card-body">
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                        {% if messages %}
+                            {% for category, message in messages %}
+                                <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                                    {{ message }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+                    {% endwith %}
+
+                    <form method="POST" id="perfilForm">
+                        {{ form.hidden_tag() }}
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {{ form.nombre.label(class="form-label") }}
+                                {{ form.nombre(class="form-control") }}
+                                {% if form.nombre.errors %}
+                                    <div class="text-danger">
+                                        {% for error in form.nombre.errors %}
+                                            <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                {{ form.apellido.label(class="form-label") }}
+                                {{ form.apellido(class="form-control") }}
+                                {% if form.apellido.errors %}
+                                    <div class="text-danger">
+                                        {% for error in form.apellido.errors %}
+                                            <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {{ form.username.label(class="form-label") }}
+                                {{ form.username(class="form-control") }}
+                                {% if form.username.errors %}
+                                    <div class="text-danger">
+                                        {% for error in form.username.errors %}
+                                            <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                                <small class="form-text text-muted">
+                                    El nombre de usuario debe ser único y solo puede contener letras, números y guiones bajos.
+                                </small>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                {{ form.email.label(class="form-label") }}
+                                {{ form.email(class="form-control") }}
+                                {% if form.email.errors %}
+                                    <div class="text-danger">
+                                        {% for error in form.email.errors %}
+                                            <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                                <small class="form-text text-muted">
+                                    Si cambias tu email, deberás confirmarlo nuevamente.
+                                </small>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {{ form.telefono.label(class="form-label") }}
+                                {{ form.telefono(class="form-control") }}
+                                {% if form.telefono.errors %}
+                                    <div class="text-danger">
+                                        {% for error in form.telefono.errors %}
+                                            <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                {{ form.fecha_nacimiento.label(class="form-label") }}
+                                {{ form.fecha_nacimiento(class="form-control") }}
+                                {% if form.fecha_nacimiento.errors %}
+                                    <div class="text-danger">
+                                        {% for error in form.fecha_nacimiento.errors %}
+                                            <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.direccion.label(class="form-label") }}
+                            {{ form.direccion(class="form-control", rows="3") }}
+                            {% if form.direccion.errors %}
+                                <div class="text-danger">
+                                    {% for error in form.direccion.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Campos de identificación -->
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {{ form.tipo_identificacion.label(class="form-label") }}
+                                {{ form.tipo_identificacion(class="form-select") }}
+                                {% if form.tipo_identificacion.errors %}
+                                    <div class="text-danger">
+                                        {% for error in form.tipo_identificacion.errors %}
+                                            <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                {{ form.numero_identificacion.label(class="form-label") }}
+                                {{ form.numero_identificacion(class="form-control") }}
+                                {% if form.numero_identificacion.errors %}
+                                    <div class="text-danger">
+                                        {% for error in form.numero_identificacion.errors %}
+                                            <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                                <small class="form-text text-muted">
+                                    Número de documento de identificación (opcional).
+                                </small>
+                            </div>
+                        </div>
+
+                        <hr>
+
+                        <!-- Información de solo lectura -->
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Roles asignados</label>
+                                <div>
+                                    {% if current_user.is_admin %}
+                                        <span class="badge bg-danger me-1">Administrador</span>
+                                    {% endif %}
+                                    {% if current_user.is_vendedor %}
+                                        <span class="badge bg-success me-1">Vendedor</span>
+                                    {% endif %}
+                                    {% if current_user.is_contador %}
+                                        <span class="badge bg-info me-1">Contador</span>
+                                    {% endif %}
+                                    {% if not (current_user.is_admin or current_user.is_vendedor or current_user.is_contador) %}
+                                        <span class="badge bg-secondary">Usuario</span>
+                                    {% endif %}
+                                </div>
+                                <small class="form-text text-muted">
+                                    Los roles son asignados por un administrador.
+                                </small>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Estado de la cuenta</label>
+                                <div>
+                                    {% if current_user.activo %}
+                                        <span class="badge bg-success">Activa</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">Inactiva</span>
+                                    {% endif %}
+                                    {% if current_user.email_confirmed %}
+                                        <span class="badge bg-success">Email Confirmado</span>
+                                    {% else %}
+                                        <span class="badge bg-warning">Email Pendiente</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-between">
+                            <button type="button" class="btn btn-secondary" onclick="resetForm()">
+                                <i class="fas fa-undo me-2"></i>Deshacer Cambios
+                            </button>
+                            {{ form.submit(class="btn btn-primary") }}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para cambiar contraseña -->
+<div class="modal fade" id="cambiarPasswordModal" tabindex="-1" aria-labelledby="cambiarPasswordModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="cambiarPasswordModalLabel">Cambiar Contraseña</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" action="{{ url_for('usuarios.cambiar_password') }}">
+                {{ form.hidden_tag() }}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="password_actual" class="form-label">Contraseña Actual</label>
+                        <input type="password" class="form-control" id="password_actual" name="password_actual" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="nueva_password" class="form-label">Nueva Contraseña</label>
+                        <input type="password" class="form-control" id="nueva_password" name="nueva_password" required>
+                        <small class="form-text text-muted">
+                            Mínimo 8 caracteres, debe incluir al menos una mayúscula, una minúscula y un número. Se permiten caracteres especiales como @$!%*?&._-
+                        </small>
+                    </div>
+                    <div class="mb-3">
+                        <label for="confirmar_password" class="form-label">Confirmar Nueva Contraseña</label>
+                        <input type="password" class="form-control" id="confirmar_password" name="confirmar_password" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Cambiar Contraseña</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// Guardar los valores originales del formulario
+const valoresOriginales = {};
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('perfilForm');
+    const inputs = form.querySelectorAll('input, textarea, select');
+    inputs.forEach(input => {
+        valoresOriginales[input.name] = input.value;
+    });
+});
+
+function resetForm() {
+    const form = document.getElementById('perfilForm');
+    const inputs = form.querySelectorAll('input, textarea, select');
+    inputs.forEach(input => {
+        if (valoresOriginales[input.name] !== undefined) {
+            input.value = valoresOriginales[input.name];
+        }
+    });
+}
+
+function reenviarConfirmacion() {
+    if (confirm('¿Deseas reenviar el email de confirmación?')) {
+        fetch('{{ url_for("usuarios.reenviar_confirmacion") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ form.csrf_token._value() }}'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Email de confirmación enviado correctamente. Revisa tu bandeja de entrada.');
+            } else {
+                alert('Error al enviar el email: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error al procesar la solicitud');
+        });
+    }
+}
+
+// Validación de contraseñas en el modal
+document.getElementById('confirmar_password').addEventListener('input', function() {
+    const nueva = document.getElementById('nueva_password').value;
+    const confirmar = this.value;
+    
+    if (nueva !== confirmar) {
+        this.setCustomValidity('Las contraseñas no coinciden');
+    } else {
+        this.setCustomValidity('');
+    }
+});
+
+// Validación de fuerza de contraseña
+document.getElementById('nueva_password').addEventListener('input', function() {
+    const password = this.value;
+    // Permitir letras, números y caracteres especiales comunes
+    const regex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d@$!%*?&._-]{8,}$/;
+    
+    if (password && !regex.test(password)) {
+        this.setCustomValidity('La contraseña debe tener al menos 8 caracteres, una mayúscula, una minúscula y un número');
+    } else {
+        this.setCustomValidity('');
+    }
+});
+
+// Detectar cambios no guardados
+let cambiosNoGuardados = false;
+document.getElementById('perfilForm').addEventListener('input', function() {
+    cambiosNoGuardados = true;
+});
+
+document.getElementById('perfilForm').addEventListener('submit', function() {
+    cambiosNoGuardados = false;
+});
+
+window.addEventListener('beforeunload', function(e) {
+    if (cambiosNoGuardados) {
+        e.preventDefault();
+        e.returnValue = 'Tienes cambios sin guardar. ¿Estás seguro de que quieres salir?';
+    }
+});
+</script>
+{% endblock %}

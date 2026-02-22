@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+
+{% block title %}Movimientos Combinados{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h2><i class="fas fa-scale-balanced me-2"></i>Movimientos Combinados</h2>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">Inicio</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('inventario.dashboard') }}">Inventario</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Ventas + Gastos</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    <div class="row mb-3">
+        <div class="col-md-4 mb-2">
+            <div class="card border-success shadow-sm">
+                <div class="card-body py-2">
+                    <small class="text-muted d-block">Total Ingresos</small>
+                    <strong class="text-success fs-5">${{ "%.2f"|format(total_ingresos) }}</strong>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-2">
+            <div class="card border-danger shadow-sm">
+                <div class="card-body py-2">
+                    <small class="text-muted d-block">Total Egresos</small>
+                    <strong class="text-danger fs-5">${{ "%.2f"|format(total_egresos) }}</strong>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-2">
+            <div class="card border-primary shadow-sm">
+                <div class="card-body py-2">
+                    <small class="text-muted d-block">Balance</small>
+                    <strong class="fs-5 {% if balance >= 0 %}text-primary{% else %}text-danger{% endif %}">${{ "%.2f"|format(balance) }}</strong>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow">
+        <div class="card-header">
+            <form method="GET" action="{{ url_for('inventario.movimientos_combinados') }}" class="row g-2 align-items-end">
+                <div class="col-md-2">
+                    <label class="form-label mb-1">Desde</label>
+                    <input type="date" class="form-control form-control-sm" name="fecha_desde" value="{{ request.args.get('fecha_desde', '') }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label mb-1">Hasta</label>
+                    <input type="date" class="form-control form-control-sm" name="fecha_hasta" value="{{ request.args.get('fecha_hasta', '') }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label mb-1">Movimiento</label>
+                    <select class="form-select form-select-sm" name="tipo_mov">
+                        <option value="" {% if request.args.get('tipo_mov', '') == '' %}selected{% endif %}>Todos</option>
+                        <option value="venta" {% if request.args.get('tipo_mov') == 'venta' %}selected{% endif %}>Ventas</option>
+                        <option value="gasto" {% if request.args.get('tipo_mov') == 'gasto' %}selected{% endif %}>Gastos</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label mb-1">Tipo Gasto</label>
+                    <select class="form-select form-select-sm" name="tipo_gasto">
+                        <option value="">Todos</option>
+                        <option value="insumos" {% if request.args.get('tipo_gasto') == 'insumos' %}selected{% endif %}>Insumos</option>
+                        <option value="servicios" {% if request.args.get('tipo_gasto') == 'servicios' %}selected{% endif %}>Servicios</option>
+                        <option value="otros" {% if request.args.get('tipo_gasto') == 'otros' %}selected{% endif %}>Otros</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label mb-1">Estado Venta</label>
+                    <select class="form-select form-select-sm" name="estado_venta">
+                        <option value="">Todos</option>
+                        <option value="completada" {% if request.args.get('estado_venta') == 'completada' %}selected{% endif %}>Completada</option>
+                        <option value="parcial" {% if request.args.get('estado_venta') == 'parcial' %}selected{% endif %}>Parcial</option>
+                        <option value="pendiente" {% if request.args.get('estado_venta') == 'pendiente' %}selected{% endif %}>Pendiente</option>
+                        <option value="cancelada" {% if request.args.get('estado_venta') == 'cancelada' %}selected{% endif %}>Cancelada</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label mb-1">Buscar</label>
+                    <input type="text" class="form-control form-control-sm" name="q" value="{{ request.args.get('q', '') }}" placeholder="ref/desc/usuario">
+                </div>
+                <div class="col-md-6 d-flex gap-2">
+                    <button type="submit" class="btn btn-sm btn-primary w-100">
+                        <i class="fas fa-filter me-1"></i>Filtrar
+                    </button>
+                    <a href="{{ url_for('inventario.movimientos_combinados') }}" class="btn btn-sm btn-outline-secondary w-100">
+                        Limpiar
+                    </a>
+                    <a
+                        href="{{ url_for('inventario.exportar_movimientos_excel', fecha_desde=request.args.get('fecha_desde', ''), fecha_hasta=request.args.get('fecha_hasta', ''), tipo_mov=request.args.get('tipo_mov', ''), tipo_gasto=request.args.get('tipo_gasto', ''), estado_venta=request.args.get('estado_venta', ''), q=request.args.get('q', '')) }}"
+                        class="btn btn-sm btn-outline-success w-100"
+                    >
+                        <i class="fas fa-file-excel me-1"></i>Excel
+                    </a>
+                </div>
+            </form>
+        </div>
+        <div class="card-body">
+            {% if movimientos %}
+            <div class="table-responsive">
+                <table class="table table-bordered table-sm align-middle">
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Hora</th>
+                            <th>Movimiento</th>
+                            <th>Subtipo</th>
+                            <th>Referencia</th>
+                            <th>Descripcion</th>
+                            <th>Usuario</th>
+                            <th>Estado</th>
+                            <th>Ingreso</th>
+                            <th>Egreso</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for m in movimientos %}
+                        <tr>
+                            <td>{{ m.fecha_hora.strftime('%Y-%m-%d') }}</td>
+                            <td>{{ m.fecha_hora.strftime('%H:%M') }}</td>
+                            <td>
+                                {% if m.movimiento == 'VENTA' %}
+                                <span class="badge bg-success">VENTA</span>
+                                {% else %}
+                                <span class="badge bg-danger">GASTO</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ m.subtipo }}</td>
+                            <td>{{ m.referencia }}</td>
+                            <td>{{ m.descripcion }}</td>
+                            <td>{{ m.usuario }}</td>
+                            <td>{{ m.estado }}</td>
+                            <td class="text-success">{% if m.ingreso > 0 %}${{ "%.2f"|format(m.ingreso) }}{% else %}-{% endif %}</td>
+                            <td class="text-danger">{% if m.egreso > 0 %}${{ "%.2f"|format(m.egreso) }}{% else %}-{% endif %}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-4">
+                <i class="fas fa-table fa-3x text-muted mb-3"></i>
+                <p class="text-muted mb-0">No hay movimientos con los filtros seleccionados.</p>
+            </div>
+            {% endif %}
+        </div>
+        <div class="card-footer d-flex justify-content-between align-items-center">
+            <small class="text-muted">Total registros: {{ total_items }}</small>
+            <div class="btn-group btn-group-sm">
+                {% set prev_page = page - 1 %}
+                {% set next_page = page + 1 %}
+                <a
+                    class="btn btn-outline-primary {% if page <= 1 %}disabled{% endif %}"
+                    href="{{ url_for('inventario.movimientos_combinados', page=prev_page, fecha_desde=request.args.get('fecha_desde', ''), fecha_hasta=request.args.get('fecha_hasta', ''), tipo_mov=request.args.get('tipo_mov', ''), tipo_gasto=request.args.get('tipo_gasto', ''), estado_venta=request.args.get('estado_venta', ''), q=request.args.get('q', '')) }}"
+                >Anterior</a>
+                <span class="btn btn-outline-secondary disabled">Página {{ page }} de {{ total_pages }}</span>
+                <a
+                    class="btn btn-outline-primary {% if page >= total_pages %}disabled{% endif %}"
+                    href="{{ url_for('inventario.movimientos_combinados', page=next_page, fecha_desde=request.args.get('fecha_desde', ''), fecha_hasta=request.args.get('fecha_hasta', ''), tipo_mov=request.args.get('tipo_mov', ''), tipo_gasto=request.args.get('tipo_gasto', ''), estado_venta=request.args.get('estado_venta', ''), q=request.args.get('q', '')) }}"
+                >Siguiente</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

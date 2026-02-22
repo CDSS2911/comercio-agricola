@@ -1,0 +1,605 @@
+{% extends "base.html" %}
+
+{% block title %}Pesaje de Huevos - {{ lote.numero_lote }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h2><i class="fas fa-weight-hanging me-2"></i>Pesaje de Huevos - {{ lote.numero_lote }}</h2>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">Inicio</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('inventario.dashboard') }}">Inventario</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('inventario.lotes') }}">Lotes</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Pesaje</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+
+    <!-- Información del lote y estadísticas -->
+    <div class="row mb-4">
+        <div class="col-lg-8">
+            <div class="card shadow">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 font-weight-bold text-primary">Información del Lote</h6>
+                    {% if lote.estado == 'EN_PROCESO' %}
+                    <button class="btn btn-success btn-sm" onclick="completarLote({{ lote.id }})">
+                        <i class="fas fa-check me-1"></i>Completar Lote
+                    </button>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Número:</strong> {{ lote.numero_lote }}</p>
+                            <p><strong>Fecha:</strong> {{ lote.fecha_recoleccion.strftime('%d/%m/%Y') }}</p>
+                            <p><strong>Encargado:</strong> {{ lote.usuario.get_full_name() }}</p>
+                            {% if lote.lote_gallinas %}
+                            <p>
+                                <strong><i class="fas fa-egg text-warning"></i> Lote de Gallinas:</strong> 
+                                <a href="{{ url_for('gallinas.detalle_lote', lote_id=lote.lote_gallinas.id) }}" 
+                                   class="badge bg-info text-decoration-none" target="_blank">
+                                    {{ lote.lote_gallinas.numero_lote }}
+                                </a>
+                            </p>
+                            <p><strong>Semana de Producción:</strong> 
+                                <span class="badge bg-primary">Semana {{ lote.semana_produccion }}</span>
+                            </p>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Estado:</strong> 
+                                {% if lote.estado == 'COMPLETADO' %}
+                                    <span class="badge bg-success">Completado</span>
+                                {% elif lote.estado == 'EN_PROCESO' %}
+                                    <span class="badge bg-warning">En Proceso</span>
+                                {% endif %}
+                            </p>
+                            {% if lote.lote_gallinas %}
+                            <p><strong>Gallinas Activas:</strong> 
+                                <span class="badge bg-success">{{ lote.lote_gallinas.cantidad_actual }}</span>
+                                de {{ lote.lote_gallinas.cantidad_inicial }}
+                            </p>
+                            <p><strong>Producción Estimada:</strong> 
+                                {{ ((lote.total_huevos / lote.lote_gallinas.cantidad_actual)|round(2)) if lote.lote_gallinas.cantidad_actual > 0 else 0 }} 
+                                huevos/gallina
+                            </p>
+                            {% endif %}
+                            <p><strong>Observaciones:</strong> {{ lote.observaciones or 'Ninguna' }}</p>
+                            <p><strong>Pesa asignada:</strong> {% if lote.pesa %}<span class='badge bg-info'>ID {{ lote.pesa.id }} - {{ lote.pesa.nombre }}</span>{% else %}<span class='badge bg-warning text-dark'>Sin asignar</span>{% endif %}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <div class="card shadow">
+                <div class="card-header">
+                    <h6 class="m-0 font-weight-bold text-success">Estadísticas del Lote</h6>
+                </div>
+                <div class="card-body">
+                    <p><strong>Total Huevos:</strong> <span class="badge bg-primary fs-6" id="totalHuevos">{{ stats_lote.total_huevos }}</span></p>
+                    <p><strong>Huevos Rotos:</strong> <span class="badge bg-danger fs-6" id="huevosRotos">{{ stats_lote.huevos_rotos }}</span></p>
+                    <p><strong>Peso Total:</strong> <span id="pesoTotal">{{ "%.1f"|format(stats_lote.peso_total) }}</span>g</p>
+                    <p><strong>Peso Promedio:</strong> <span id="pesoPromedio">{{ "%.1f"|format(stats_lote.peso_promedio) }}</span>g</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Área de Visualización de Categoría -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div id="categoriaDisplay" class="text-center py-5" style="display: none; background: linear-gradient(135deg, #17a2b8 0%, #138496 100%); border-radius: 15px; border: 3px solid #0dcaf0; min-height: 200px;">
+                <div class="d-flex flex-column justify-content-center align-items-center h-100">
+                    <i class="fas fa-egg text-white mb-3" style="font-size: 4rem;"></i>
+                    <h1 class="display-1 fw-bold text-white mb-2" id="categoriaTexto" style="font-size: 8rem; text-shadow: 0 0 30px rgba(255,255,255,0.5);">-</h1>
+                    <h3 class="text-white" id="categoriaSubtexto">Categoría del Huevo</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if lote.estado == 'EN_PROCESO' %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow border-left-info">
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('inventario.asignar_pesa_lote', lote_id=lote.id) }}" class="row g-3 align-items-end">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <div class="col-md-8">
+                            <label for="pesa_id" class="form-label"><strong>ID de la pesa (obligatorio antes de pesar)</strong></label>
+                            <select class="form-select" id="pesa_id" name="pesa_id" required>
+                                <option value="">Selecciona una pesa</option>
+                                {% for pesa in pesas_activas %}
+                                <option value="{{ pesa.id }}" {% if lote.pesa_id == pesa.id %}selected{% endif %}>ID {{ pesa.id }} - {{ pesa.nombre }} ({{ pesa.puerto }})</option>
+                                {% endfor %}
+                            </select>
+                            {% if not pesas_activas %}
+                            <small class="text-danger">No hay pesas activas. Crea una en Configuración de Pesas.</small>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-4">
+                            <button type="submit" class="btn btn-info w-100" {% if not pesas_activas %}disabled{% endif %}>
+                                <i class="fas fa-save me-2"></i>Guardar Pesa
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    <!-- Pestañas de funcionalidades -->
+    <ul class="nav nav-tabs" id="pesajeTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="manual-tab" data-bs-toggle="tab" 
+                    data-bs-target="#manual" type="button" role="tab">
+                <i class="fas fa-keyboard me-2"></i>Pesaje Manual
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="archivo-tab" data-bs-toggle="tab" 
+                    data-bs-target="#archivo" type="button" role="tab">
+                <i class="fas fa-file-alt me-2"></i>Cargar Archivo
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="distribucion-tab" data-bs-toggle="tab" 
+                    data-bs-target="#distribucion" type="button" role="tab">
+                <i class="fas fa-chart-pie me-2"></i>Distribución
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="historial-tab" data-bs-toggle="tab" 
+                    data-bs-target="#historial" type="button" role="tab">
+                <i class="fas fa-history me-2"></i>Historial
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="pesajeTabsContent">
+        <!-- Pesaje Manual -->
+        <div class="tab-pane fade show active" id="manual" role="tabpanel">
+            <div class="card shadow mt-3">
+                <div class="card-body">
+                    {% if lote.estado == 'EN_PROCESO' and lote.pesa_id %}
+                    <form id="pesajeManualForm" class="row g-3">
+                        <div class="col-md-4">
+                            <label for="peso" class="form-label">Peso del Huevo (gramos)</label>
+                            <input type="number" class="form-control" id="peso" step="0.1" 
+                                   min="0" max="200" placeholder="65.5" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Estado del Huevo</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="huevoRoto">
+                                <label class="form-check-label text-danger" for="huevoRoto">
+                                    <i class="fas fa-exclamation-triangle me-1"></i>Huevo Roto
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-4 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="fas fa-plus me-2"></i>Agregar Huevo
+                            </button>
+                        </div>
+                    </form>
+                    
+                    <!-- Botón de huevo roto rápido -->
+                    <div class="mt-3">
+                        <button type="button" class="btn btn-danger" onclick="agregarHuevoRoto()">
+                            <i class="fas fa-heartbeat me-2"></i>Agregar Huevo Roto (sin peso)
+                        </button>
+                        <small class="form-text text-muted d-block">
+                            Para huevos rotos que no se pueden pesar.
+                        </small>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info alert-permanent">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Asigna una pesa al lote o verifica que el lote siga en proceso para agregar huevos.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Cargar Archivo -->
+        <div class="tab-pane fade" id="archivo" role="tabpanel">
+            <div class="card shadow mt-3">
+                <div class="card-body">
+                    {% if lote.estado == 'EN_PROCESO' and lote.pesa_id %}
+                    <form method="POST" action="{{ url_for('inventario.procesar_archivo_pesos', lote_id=lote.id) }}" enctype="multipart/form-data">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+    <div class="mb-3">
+        <label for="archivo_txt" class="form-label">Archivo .txt (opcional)</label>
+        <input class="form-control" type="file" id="archivo_txt" name="archivo_txt" accept=".txt,text/plain">
+        <small class="form-text text-muted">
+            Puedes subir un archivo .txt con un peso por línea.
+        </small>
+    </div>
+
+    <div class="mb-3">
+        <label for="archivo_contenido" class="form-label">Contenido del Archivo</label>
+        <textarea class="form-control" id="archivo_contenido" name="archivo_contenido"
+                  rows="10" placeholder="65.5&#10;72.1&#10;58.3&#10;69.8&#10;..."></textarea>
+        <small class="form-text text-muted">
+            Si subes archivo, se cargara aqui automaticamente para que puedas revisarlo.
+        </small>
+    </div>
+                        
+                        <div class="alert alert-warning alert-permanent">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>Importante:</strong> 
+                            <ul class="mb-0">
+                                <li>Un peso por línea (ejemplo: 65.5)</li>
+                                <li>Usa punto (.) como separador decimal</li>
+                                <li>Los huevos se clasificarán automáticamente</li>
+                                <li>Las líneas inválidas se ignorarán</li>
+                            </ul>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-upload me-2"></i>Procesar Archivo
+                        </button>
+                    </form>
+                    {% else %}
+                    <div class="alert alert-info alert-permanent">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Asigna una pesa al lote o verifica que el lote siga en proceso para cargar pesos.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Distribución por categorías -->
+        <div class="tab-pane fade" id="distribucion" role="tabpanel">
+            <div class="card shadow mt-3">
+                <div class="card-body">
+                    <h6 class="text-primary mb-3">Distribución por Categorías</h6>
+                    {% if distribucion %}
+                    <div class="row">
+                        {% for categoria in distribucion %}
+                        <div class="col-md-6 col-lg-4 mb-3">
+                            <div class="card border-primary">
+                                <div class="card-body text-center">
+                                    <h5 class="card-title text-primary">{{ categoria.nombre }}</h5>
+                                    <p class="card-text">
+                                        <span class="badge bg-primary fs-6">{{ categoria.cantidad }} huevos</span>
+                                    </p>
+                                    <p class="card-text">
+                                        <small class="text-muted">Peso total: {{ "%.1f"|format(categoria.peso_total) }}g</small>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-chart-pie fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">No hay huevos clasificados aún.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Historial de huevos -->
+        <div class="tab-pane fade" id="historial" role="tabpanel">
+            <div class="card shadow mt-3">
+                <div class="card-body">
+                    <h6 class="text-primary mb-3">Últimos Huevos Registrados</h6>
+                    {% if huevos %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Hora</th>
+                                    <th>Peso</th>
+                                    <th>Categoría</th>
+                                    <th>Estado</th>
+                                    <th>Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for huevo in huevos %}
+                                <tr>
+                                    <td>{{ huevo.timestamp.strftime('%H:%M:%S') }}</td>
+                                    <td>{{ huevo.peso }}g</td>
+                                    <td>
+                                        {% if huevo.categoria %}
+                                            <span class="badge bg-info">{{ huevo.categoria.nombre }}</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Sin categoría</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if huevo.roto %}
+                                            <span class="badge bg-danger">Roto</span>
+                                        {% else %}
+                                            <span class="badge bg-success">OK</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if not huevo.roto and lote.estado == 'EN_PROCESO' %}
+                                        <button class="btn btn-sm btn-danger" 
+                                                onclick="marcarRoto({{ huevo.id }})" title="Marcar como roto">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-history fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">No hay huevos registrados aún.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="toast-container position-fixed bottom-0 end-0 p-3">
+                <div class="toast show" role="alert">
+                    <div class="toast-header">
+                        <strong class="me-auto">Inventario</strong>
+                        <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+                    </div>
+                    <div class="toast-body">
+                        {{ message }}
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<script>
+let ultimoHuevoId = {{ huevos[-1].id if huevos else 0 }};
+let pollInFlight = false;
+
+function aplicarEstadisticas(stats) {
+    if (!stats) {
+        return;
+    }
+    document.getElementById('totalHuevos').textContent = stats.total_huevos;
+    document.getElementById('huevosRotos').textContent = stats.huevos_rotos;
+    document.getElementById('pesoTotal').textContent = Number(stats.peso_total || 0).toFixed(1);
+    document.getElementById('pesoPromedio').textContent = Number(stats.peso_promedio || 0).toFixed(1);
+}
+
+function mostrarCategoria(huevo) {
+    if (!huevo) {
+        return;
+    }
+    const categoriaDisplay = document.getElementById('categoriaDisplay');
+    const categoriaTexto = document.getElementById('categoriaTexto');
+    const categoriaSubtexto = document.getElementById('categoriaSubtexto');
+
+    categoriaTexto.textContent = huevo.categoria || 'Sin clasificar';
+    categoriaSubtexto.textContent = huevo.roto ? 'Huevo Roto' : 'Última Categoría Agregada';
+    categoriaDisplay.style.display = 'block';
+}
+
+function actualizarEstadisticas() {
+    fetch(`/inventario/lotes/{{ lote.id }}/estadisticas`, {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(stats => aplicarEstadisticas(stats))
+    .catch(error => {
+        console.error('Error al actualizar estadísticas:', error);
+    });
+}
+
+function actualizarUltimoHuevo() {
+    return fetch(`/inventario/lotes/{{ lote.id }}/ultimo-huevo?after_id=${ultimoHuevoId}`, {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (!data.success || !data.has_new || !data.huevo) {
+            return;
+        }
+
+        ultimoHuevoId = data.huevo.id || ultimoHuevoId;
+        mostrarCategoria(data.huevo);
+        aplicarEstadisticas(data.stats);
+    })
+    .catch(error => {
+        console.error('Error al obtener último huevo:', error);
+    });
+}
+
+const pesajeManualForm = document.getElementById('pesajeManualForm');
+if (pesajeManualForm) {
+    pesajeManualForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const peso = document.getElementById('peso').value;
+        const roto = document.getElementById('huevoRoto').checked;
+
+        if (!roto && (!peso || peso <= 0)) {
+            alert('Por favor ingresa un peso válido');
+            return;
+        }
+
+        fetch(`/inventario/lotes/{{ lote.id }}/pesar/manual`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify({
+                peso: parseFloat(peso || 0),
+                roto: roto
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                if (data.huevo && data.huevo.id) {
+                    ultimoHuevoId = data.huevo.id;
+                }
+                mostrarCategoria(data.huevo);
+                aplicarEstadisticas(data.stats);
+
+                document.getElementById('peso').value = '';
+                document.getElementById('huevoRoto').checked = false;
+                document.getElementById('peso').focus();
+            } else {
+                alert('Error: ' + (data.message || 'No se pudo agregar el huevo'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error al procesar el huevo');
+        });
+    });
+}
+
+function agregarHuevoRoto() {
+    if (confirm('¿Agregar un huevo roto sin peso?')) {
+        fetch(`/inventario/lotes/{{ lote.id }}/pesar/manual`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify({
+                peso: 0,
+                roto: true
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                if (data.huevo && data.huevo.id) {
+                    ultimoHuevoId = data.huevo.id;
+                }
+                mostrarCategoria(data.huevo);
+                aplicarEstadisticas(data.stats);
+            } else {
+                alert('Error: ' + (data.message || 'No se pudo agregar el huevo roto'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error al procesar el huevo roto');
+        });
+    }
+}
+
+function marcarRoto(huevoId) {
+    if (confirm('¿Marcar este huevo como roto?')) {
+        fetch(`/inventario/huevos/${huevoId}/marcar-roto`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        });
+    }
+}
+
+function completarLote(loteId) {
+    if (confirm('¿Completar este lote? No podrás agregar más huevos después.')) {
+        fetch(`/inventario/lotes/${loteId}/completar`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            }
+        })
+        .then(response => {
+            if (response.ok) {
+                window.location.href = '/inventario/lotes';
+            } else {
+                alert('Error al completar el lote');
+            }
+        });
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const pesoInput = document.getElementById('peso');
+    if (pesoInput) {
+        pesoInput.focus();
+    }
+
+    const archivoInput = document.getElementById('archivo_txt');
+    const contenidoTextarea = document.getElementById('archivo_contenido');
+    if (archivoInput && contenidoTextarea) {
+        archivoInput.addEventListener('change', function(event) {
+            const file = event.target.files && event.target.files[0];
+            if (!file) {
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                contenidoTextarea.value = String(e.target.result || '');
+            };
+            reader.readAsText(file);
+        });
+    }
+});
+
+const pesoInput = document.getElementById('peso');
+if (pesoInput && pesajeManualForm) {
+    pesoInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            pesajeManualForm.dispatchEvent(new Event('submit'));
+        }
+    });
+}
+
+setInterval(function() {
+    if (pollInFlight) {
+        return;
+    }
+    pollInFlight = true;
+    actualizarUltimoHuevo().finally(function() {
+        pollInFlight = false;
+    });
+}, 250);
+</script>
+{% endblock %}
+
+
+
+
+
+
+
+

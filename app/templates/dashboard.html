@@ -1,0 +1,1300 @@
+{% extends "base.html" %}
+
+{% block styles %}
+<style>
+/* Estilos específicos para el dashboard */
+.table-dark th {
+    background-color: #343a40 !important;
+    color: #ffffff !important;
+    border-color: #454d55 !important;
+    font-weight: 600 !important;
+    text-align: center !important;
+    vertical-align: middle !important;
+}
+
+.table-dark th.text-white {
+    color: #ffffff !important;
+}
+
+#tablaInventario thead th {
+    background-color: #343a40 !important;
+    color: #ffffff !important;
+    font-weight: 600 !important;
+    border: 1px solid #454d55 !important;
+    padding: 12px 8px !important;
+}
+
+#tablaInventario thead {
+    background-color: #343a40 !important;
+}
+
+/* Asegurar que los títulos se vean */
+#headerTabla th {
+    color: #ffffff !important;
+    background-color: #343a40 !important;
+    font-size: 14px !important;
+    font-weight: bold !important;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<input type="hidden" id="csrfToken" value="{{ csrf_token() }}">
+<div class="row">
+    <!-- Estadísticas Generales -->
+    <div class="col-md-12 mb-4">
+        <div class="row">
+            <div class="col-md-2">
+                <div class="card bg-primary text-white">
+                    <div class="card-body text-center">
+                        <i class="fas fa-boxes fa-2x mb-2"></i>
+                        <h4>{{ stats_generales.total_lotes }}</h4>
+                        <small>Total Lotes</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card bg-success text-white">
+                    <div class="card-body text-center">
+                        <i class="fas fa-egg fa-2x mb-2"></i>
+                        <h4>{{ stats_generales.total_huevos }}</h4>
+                        <small>Huevos Buenos</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card bg-danger text-white">
+                    <div class="card-body text-center">
+                        <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+                        <h4>{{ stats_generales.huevos_rotos }}</h4>
+                        <small>Huevos Rotos</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card bg-info text-white">
+                    <div class="card-body text-center">
+                        <i class="fas fa-store fa-2x mb-2"></i>
+                        <h4>{{ stats_generales.huevos_disponibles }}</h4>
+                        <small>Disponibles</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card bg-warning text-white">
+                    <div class="card-body text-center">
+                        <i class="fas fa-weight fa-2x mb-2"></i>
+                        <h4>{{ "%.1f"|format(stats_generales.peso_total) }}</h4>
+                        <small>g Total</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card bg-secondary text-white">
+                    <div class="card-body text-center">
+                        <i class="fas fa-user-circle fa-2x mb-2"></i>
+                        <h6 class="mb-1">{{ current_user.get_full_name() }}</h6>
+                        <small>@{{ current_user.username }}</small>
+                        {% if current_user.is_admin %}
+                        <br><span class="badge bg-danger mt-1">Admin</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Reportes y Gráficos -->
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h4><i class="fas fa-chart-line me-2"></i>Reportes de Inventario</h4>
+                <div class="d-flex flex-wrap align-items-center gap-3">
+                    <div class="btn-group" role="group">
+                        <button type="button" class="btn btn-outline-primary active" id="btnDiario" onclick="cambiarPeriodo('diario')">
+                            <i class="fas fa-calendar-day me-1"></i>Diario
+                        </button>
+                        <button type="button" class="btn btn-outline-primary" id="btnMensual" onclick="cambiarPeriodo('mensual')">
+                            <i class="fas fa-calendar-alt me-1"></i>Mensual
+                        </button>
+                    </div>
+                    
+                    <!-- Filtros de Fecha -->
+                    <div class="d-flex align-items-center gap-2">
+                        <label class="form-label mb-0 text-muted">Año:</label>
+                        <select class="form-select form-select-sm" id="selectAnio" onchange="cambiarFiltros()" style="width: auto;">
+                            <option value="">Cargando...</option>
+                        </select>
+                        
+                        <label class="form-label mb-0 text-muted" id="labelMes" style="display: none;">Mes:</label>
+                        <select class="form-select form-select-sm" id="selectMes" onchange="cambiarFiltros()" style="width: auto; display: none;">
+                            <option value="">Todos los meses</option>
+                        </select>
+                        
+                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="limpiarFiltros()">
+                            <i class="fas fa-times me-1"></i>Limpiar
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="descargarInventarioCSV()">
+                            <i class="fas fa-file-csv me-1"></i>Descargar CSV
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-success" onclick="descargarExcel()">
+                            <i class="fas fa-file-excel me-1"></i>Descargar Excel
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- Controles de Vista -->
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div class="d-flex gap-3 align-items-center">
+                        <div class="btn-group" role="group">
+                            <button type="button" class="btn btn-sm btn-outline-info active" id="btnGrafico" onclick="cambiarVista('grafico')">
+                                <i class="fas fa-chart-bar me-1"></i>Gráfico
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-info" id="btnTabla" onclick="cambiarVista('tabla')">
+                                <i class="fas fa-table me-1"></i>Tabla
+                            </button>
+                        </div>
+                        <div class="form-check" id="checkCategorias" style="display: none;">
+                            <input class="form-check-input" type="checkbox" id="mostrarCategorias" onchange="toggleCategorias()" checked>
+                            <label class="form-check-label" for="mostrarCategorias">
+                                <small>Mostrar categorías</small>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="text-muted">
+                        <small id="periodoActual">Últimos 30 días</small>
+                    </div>
+                </div>
+                
+                <!-- Vista de Gráfico -->
+                <div id="vistaGrafico">
+                    <canvas id="chartInventario" width="400" height="100"></canvas>
+                    
+                    <!-- Gráficos adicionales por categorías -->
+                    <div class="row mt-4" id="graficosCategoria">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6><i class="fas fa-chart-bar me-2"></i>Distribución por Categorías</h6>
+                                </div>
+                                <div class="card-body">
+                                    <canvas id="chartCategorias" width="400" height="200"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6><i class="fas fa-chart-pie me-2"></i>Proporción de Categorías</h6>
+                                </div>
+                                <div class="card-body">
+                                    <canvas id="chartTorta" width="400" height="200"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-3" id="graficosEvolucion">
+                        <div class="col-md-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6><i class="fas fa-chart-line me-2"></i>Evolución de Categorías en el Tiempo</h6>
+                                </div>
+                                <div class="card-body">
+                                    <canvas id="chartEvolucion" width="400" height="150"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Vista de Tabla -->
+                <div id="vistaTabla" style="display: none;">
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover" id="tablaInventario">
+                            <thead class="table-dark" style="background-color: #343a40 !important;">
+                                <tr id="headerTabla">
+                                    <th class="text-white" style="color: #ffffff !important; background-color: #343a40 !important;">Fecha</th>
+                                    <th class="text-white" style="color: #ffffff !important; background-color: #343a40 !important;">Total Huevos</th>
+                                    <th class="text-white" style="color: #ffffff !important; background-color: #343a40 !important;">Buenos</th>
+                                    <th class="text-white" style="color: #ffffff !important; background-color: #343a40 !important;">Rotos</th>
+                                    <th class="text-white" style="color: #ffffff !important; background-color: #343a40 !important;">Peso Total (g)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="bodyTabla">
+                                <!-- Datos se cargan dinámicamente -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+
+    <!-- Reportes de Ventas de Huevos -->
+    <div class="col-md-12 mt-4">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h4><i class="fas fa-cash-register me-2"></i>Ventas de Huevos</h4>
+                <div class="d-flex gap-2">
+                    <a class="btn btn-sm btn-outline-primary" id="exportVentasHuevosDiario" href="{{ url_for('main.export_dashboard', reporte='ventas-huevos', periodo='diario') }}">
+                        Descargar Diario
+                    </a>
+                    <a class="btn btn-sm btn-outline-primary" id="exportVentasHuevosMensual" href="{{ url_for('main.export_dashboard', reporte='ventas-huevos', periodo='mensual') }}">
+                        Descargar Mensual
+                    </a>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6 class="mb-3">Diario (ultimos 30 dias)</h6>
+                        {% if ventas_huevos_diarias %}
+                        <div class="table-responsive">
+                            <table class="table table-sm table-striped">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>Fecha</th>
+                                        <th class="text-center">Huevos</th>
+                                        <th class="text-center">Paneles</th>
+                                        <th class="text-end">Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="ventasDiariasBody">
+                                    {% for fila in ventas_huevos_diarias %}
+                                    <tr>
+                                        <td>{{ fila.fecha.strftime('%d/%m/%Y') }}</td>
+                                        <td class="text-center">{{ fila.huevos }}</td>
+                                        <td class="text-center">{{ fila.paneles }}</td>
+                                        <td class="text-end">${{ "%.2f"|format(fila.total) }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="text-muted">Sin ventas registradas.</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="mb-3">Mensual (ano actual)</h6>
+                        {% if ventas_huevos_mensuales %}
+                        <div class="table-responsive">
+                            <table class="table table-sm table-striped">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>Mes</th>
+                                        <th class="text-center">Huevos</th>
+                                        <th class="text-center">Paneles</th>
+                                        <th class="text-end">Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="ventasMensualesBody">
+                                    {% for fila in ventas_huevos_mensuales %}
+                                    <tr>
+                                        <td>{{ fila.mes }}</td>
+                                        <td class="text-center">{{ fila.huevos }}</td>
+                                        <td class="text-center">{{ fila.paneles }}</td>
+                                        <td class="text-end">${{ "%.2f"|format(fila.total) }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="text-muted">Sin ventas registradas.</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reportes de Produccion (Huevos y Paneles) -->
+    <div class="col-md-12 mt-4">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h4><i class="fas fa-egg me-2"></i>Produccion de Huevos y Paneles</h4>
+                <div class="d-flex gap-2">
+                    <a class="btn btn-sm btn-outline-primary" id="exportProduccionDiario" href="{{ url_for('main.export_dashboard', reporte='produccion-huevos', periodo='diario') }}">
+                        Descargar Diario
+                    </a>
+                    <a class="btn btn-sm btn-outline-primary" id="exportProduccionMensual" href="{{ url_for('main.export_dashboard', reporte='produccion-huevos', periodo='mensual') }}">
+                        Descargar Mensual
+                    </a>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6 class="mb-3">Diario (ultimos 30 dias)</h6>
+                        {% if produccion_diaria %}
+                        <div class="table-responsive">
+                            <table class="table table-sm table-striped">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>Fecha</th>
+                                        <th class="text-center">Huevos</th>
+                                        <th class="text-center">Paneles</th>
+                                        <th class="text-center">Sobrantes</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="produccionDiariaBody">
+                                    {% for fila in produccion_diaria %}
+                                    <tr>
+                                        <td>{{ fila.fecha.strftime('%d/%m/%Y') }}</td>
+                                        <td class="text-center">{{ fila.huevos }}</td>
+                                        <td class="text-center">{{ fila.paneles }}</td>
+                                        <td class="text-center">{{ fila.sobrantes }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="text-muted">Sin registros de produccion.</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="mb-3">Mensual (ano actual)</h6>
+                        {% if produccion_mensual %}
+                        <div class="table-responsive">
+                            <table class="table table-sm table-striped">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>Mes</th>
+                                        <th class="text-center">Huevos</th>
+                                        <th class="text-center">Paneles</th>
+                                        <th class="text-center">Sobrantes</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="produccionMensualBody">
+                                    {% for fila in produccion_mensual %}
+                                    <tr>
+                                        <td>{{ fila.mes }}</td>
+                                        <td class="text-center">{{ fila.huevos }}</td>
+                                        <td class="text-center">{{ fila.paneles }}</td>
+                                        <td class="text-center">{{ fila.sobrantes }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="text-muted">Sin registros de produccion.</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Disponibilidad de Huevos -->
+    <div class="col-md-12 mt-4">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h4><i class="fas fa-warehouse me-2"></i>Disponibilidad de Huevos</h4>
+                <a class="btn btn-sm btn-outline-primary" id="exportDisponibilidad" href="{{ url_for('main.export_dashboard', reporte='inventario-disponible') }}">
+                    Descargar CSV
+                </a>
+            </div>
+            <div class="card-body">
+                {% if disponibilidad_huevos %}
+                <div class="table-responsive">
+                    <table class="table table-sm table-striped">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Categoria</th>
+                                <th class="text-center">Huevos</th>
+                                <th class="text-center">Paneles</th>
+                                <th class="text-center">Sobrantes</th>
+                                <th class="text-end">Precio</th>
+                            </tr>
+                        </thead>
+                        <tbody id="disponibilidadBody">
+                            {% for item in disponibilidad_huevos %}
+                            {% set cantidad = item.cantidad or 0 %}
+                            <tr>
+                                <td>{{ item.nombre }}</td>
+                                <td class="text-center">{{ cantidad }}</td>
+                                <td class="text-center">{{ cantidad // 30 }}</td>
+                                <td class="text-center">{{ cantidad % 30 }}</td>
+                                <td class="text-end">${{ "%.2f"|format(item.precio_venta) }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-muted">No hay huevos disponibles.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Mortalidad de Gallinas -->
+    <div class="col-md-12 mt-4">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h4><i class="fas fa-heartbeat me-2"></i>Mortalidad de Gallinas (Ano Actual)</h4>
+                <a class="btn btn-sm btn-outline-primary" id="exportMortalidad" href="{{ url_for('main.export_dashboard', reporte='mortalidad-gallinas', periodo='mensual') }}">
+                    Descargar CSV
+                </a>
+            </div>
+            <div class="card-body">
+                <canvas id="chartMortalidad" height="120"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ventas de Gallinas -->
+    <div class="col-md-12 mt-4">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h4><i class="fas fa-dollar-sign me-2"></i>Ventas de Gallinas</h4>
+                <a class="btn btn-sm btn-outline-primary" id="exportVentasGallinas" href="{{ url_for('main.export_dashboard', reporte='ventas-gallinas') }}">
+                    Descargar CSV
+                </a>
+            </div>
+            <div class="card-body">
+                {% if ventas_gallinas %}
+                <div class="table-responsive">
+                    <table class="table table-sm table-striped">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Fecha</th>
+                                <th class="text-center">Cantidad</th>
+                                <th class="text-end">Precio Unitario</th>
+                                <th class="text-end">Precio Total</th>
+                                <th>Comprador</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ventasGallinasBody">
+                            {% for venta in ventas_gallinas %}
+                            <tr>
+                                <td>{{ venta.fecha_venta.strftime('%d/%m/%Y') }}</td>
+                                <td class="text-center">{{ venta.cantidad }}</td>
+                                <td class="text-end">${{ "%.2f"|format(venta.precio_unitario or 0) }}</td>
+                                <td class="text-end">${{ "%.2f"|format(venta.precio_total or 0) }}</td>
+                                <td>{{ venta.comprador or '-' }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-muted">Sin ventas registradas.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Distribución por Categorías -->
+    {% if distribucion_categorias %}
+    <div class="col-md-12 mt-4">
+        <div class="card">
+            <div class="card-header">
+                <h4><i class="fas fa-pie-chart me-2"></i>Inventario Actual por Categorías</h4>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% for categoria in distribucion_categorias %}
+                    <div class="col-md-3 mb-3">
+                        <div class="card bg-light">
+                            <div class="card-body text-center">
+                                <h5 class="text-primary">{{ categoria.nombre }}</h5>
+                                <p class="text-muted small">{{ categoria.peso_min }}g - {{ categoria.peso_max }}g</p>
+                                <h3 class="text-success">{{ categoria.cantidad }}</h3>
+                                <small class="text-muted">{{ "%.1f"|format(categoria.peso_total) }} g</small>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Acciones Rápidas -->
+    <div class="col-md-12 mt-4">
+        <div class="card">
+            <div class="card-header">
+                <h4><i class="fas fa-bolt me-2"></i>Acciones Rápidas</h4>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3 mb-2">
+                        <a href="{{ url_for('inventario.dashboard') }}" class="btn btn-success w-100">
+                            <i class="fas fa-egg me-2"></i>Inventario de Huevos
+                        </a>
+                    </div>
+                    {% if not current_user.email_confirmed %}
+                    <div class="col-md-3 mb-2">
+                        <button class="btn btn-warning w-100" onclick="resendConfirmation()">
+                            <i class="fas fa-envelope me-2"></i>Confirmar Email
+                        </button>
+                    </div>
+                    {% endif %}
+                    <div class="col-md-3 mb-2">
+                        <a href="{{ url_for('usuarios.perfil') }}" class="btn btn-outline-primary w-100">
+                            <i class="fas fa-user me-2"></i>Mi Perfil
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <a href="{{ url_for('auth.logout') }}" class="btn btn-outline-danger w-100">
+                            <i class="fas fa-sign-out-alt me-2"></i>Cerrar Sesión
+                        </a>
+                    </div>
+                </div>
+                
+                {% if not current_user.email_confirmed %}
+                <div class="alert alert-warning mt-3">
+                    <h6><i class="fas fa-exclamation-triangle me-2"></i>Confirma tu Email</h6>
+                    <p class="mb-2">Tu cuenta no está completamente verificada. Por favor, revisa tu email y sigue las instrucciones.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+let chartInventario = null;
+let chartCategorias = null;
+let chartTorta = null;
+let chartEvolucion = null;
+let chartMortalidad = null;
+let periodoActual = 'diario';
+let vistaActual = 'grafico';
+let mostrarCategoriasActivo = true;
+let datosActuales = null;
+let anioSeleccionado = null;
+let mesSeleccionado = null;
+let anosDisponibles = [];
+let mesesDisponibles = [];
+let mortalidadLabels = {{ mortalidad_labels|tojson }};
+let mortalidadData = {{ mortalidad_mensual|tojson }};
+
+// Inicializar dashboard
+document.addEventListener('DOMContentLoaded', function() {
+    cargarAnosDisponibles();
+    renderMortalidadChart();
+    fetchReportes();
+    actualizarLinksExport();
+});
+
+function cargarAnosDisponibles() {
+    fetch('/api/dashboard/anos-disponibles')
+        .then(response => response.json())
+        .then(data => {
+            anosDisponibles = data.anos;
+            const select = document.getElementById('selectAnio');
+            select.innerHTML = '<option value="">Seleccionar año</option>';
+            
+            data.anos.forEach(ano => {
+                const option = document.createElement('option');
+                option.value = ano;
+                option.textContent = ano;
+                if (ano === new Date().getFullYear()) {
+                    option.selected = true;
+                    anioSeleccionado = ano;
+                }
+                select.appendChild(option);
+            });
+            
+            // Cargar meses si hay año seleccionado
+            if (anioSeleccionado) {
+                cargarMesesDisponibles(anioSeleccionado);
+            }
+            
+            // Cargar datos iniciales
+            cargarDatos('diario');
+        })
+        .catch(error => {
+            console.error('Error cargando años:', error);
+            cargarDatos('diario');
+        });
+}
+
+function cargarMesesDisponibles(anio) {
+    if (!anio) return;
+    
+    fetch(`/api/dashboard/meses-disponibles/${anio}`)
+        .then(response => response.json())
+        .then(data => {
+            mesesDisponibles = data.meses;
+            const select = document.getElementById('selectMes');
+            select.innerHTML = '<option value="">Todos los meses</option>';
+            
+            data.meses.forEach(mes => {
+                const option = document.createElement('option');
+                option.value = mes.numero;
+                option.textContent = mes.nombre;
+                select.appendChild(option);
+            });
+        })
+        .catch(error => {
+            console.error('Error cargando meses:', error);
+        });
+}
+
+function cambiarPeriodo(periodo) {
+    periodoActual = periodo;
+    
+    // Actualizar botones
+    document.querySelectorAll('[id^="btn"][id$="rio"], [id^="btn"][id$="sual"]').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    
+    let btnId = 'btn' + (periodo === 'diario' ? 'Diario' : 'Mensual');
+    document.getElementById(btnId).classList.add('active');
+    
+    // Mostrar/ocultar controles de mes según el período
+    const labelMes = document.getElementById('labelMes');
+    const selectMes = document.getElementById('selectMes');
+    
+    if (periodo === 'diario') {
+        labelMes.style.display = 'block';
+        selectMes.style.display = 'block';
+    } else {
+        labelMes.style.display = 'none';
+        selectMes.style.display = 'none';
+        mesSeleccionado = null;
+        selectMes.value = '';
+    }
+    
+    // Actualizar texto del período
+    actualizarTextoPeriodo();
+    
+    // Cargar nuevos datos
+    if (vistaActual === 'tabla' && mostrarCategoriasActivo) {
+        cargarTablaDetallada(periodo);
+    } else {
+        cargarDatos(periodo);
+    }
+    fetchReportes();
+    actualizarLinksExport();
+}
+
+function cambiarFiltros() {
+    const selectAnio = document.getElementById('selectAnio');
+    const selectMes = document.getElementById('selectMes');
+    
+    const nuevoAnio = selectAnio.value ? parseInt(selectAnio.value) : null;
+    const nuevoMes = selectMes.value ? parseInt(selectMes.value) : null;
+    
+    // Si cambió el año, recargar meses
+    if (nuevoAnio !== anioSeleccionado) {
+        anioSeleccionado = nuevoAnio;
+        mesSeleccionado = null;
+        selectMes.value = '';
+        
+        if (anioSeleccionado) {
+            cargarMesesDisponibles(anioSeleccionado);
+        }
+    } else {
+        mesSeleccionado = nuevoMes;
+    }
+    
+    // Actualizar texto del período
+    actualizarTextoPeriodo();
+    
+    // Recargar datos
+    if (vistaActual === 'tabla' && mostrarCategoriasActivo) {
+        cargarTablaDetallada(periodoActual);
+    } else {
+        cargarDatos(periodoActual);
+    }
+    fetchReportes();
+    actualizarLinksExport();
+}
+
+function limpiarFiltros() {
+    document.getElementById('selectAnio').value = '';
+    document.getElementById('selectMes').value = '';
+    anioSeleccionado = null;
+    mesSeleccionado = null;
+    
+    // Actualizar texto del período
+    actualizarTextoPeriodo();
+    
+    // Recargar datos
+    if (vistaActual === 'tabla' && mostrarCategoriasActivo) {
+        cargarTablaDetallada(periodoActual);
+    } else {
+        cargarDatos(periodoActual);
+    }
+    fetchReportes();
+    actualizarLinksExport();
+}
+
+function actualizarTextoPeriodo() {
+    const periodoElement = document.getElementById('periodoActual');
+    let texto = '';
+    
+    if (anioSeleccionado) {
+        if (periodoActual === 'diario') {
+            if (mesSeleccionado) {
+                const nombreMes = mesesDisponibles.find(m => m.numero === mesSeleccionado)?.nombre || 'Mes';
+                texto = `${nombreMes} ${anioSeleccionado}`;
+            } else {
+                texto = `Año ${anioSeleccionado} (últimos 30 días)`;
+            }
+        } else {
+            texto = `Año ${anioSeleccionado} por meses`;
+        }
+    } else {
+        texto = periodoActual === 'diario' ? 'Últimos 30 días' : 'Año actual por meses';
+    }
+    
+    periodoElement.textContent = texto;
+}
+
+function cambiarVista(vista) {
+    vistaActual = vista;
+    
+    // Actualizar botones
+    document.querySelectorAll('[id^="btn"][id$="fico"], [id^="btn"][id$="bla"]').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    document.getElementById('btn' + (vista === 'grafico' ? 'Grafico' : 'Tabla')).classList.add('active');
+    
+    // Mostrar/ocultar vistas
+    document.getElementById('vistaGrafico').style.display = vista === 'grafico' ? 'block' : 'none';
+    document.getElementById('vistaTabla').style.display = vista === 'tabla' ? 'block' : 'none';
+    
+    // Mostrar/ocultar gráficos de categorías
+    const graficosCategoria = document.getElementById('graficosCategoria');
+    const graficosEvolucion = document.getElementById('graficosEvolucion');
+    
+    if (vista === 'grafico') {
+        graficosCategoria.style.display = 'block';
+        graficosEvolucion.style.display = 'block';
+        // Actualizar gráficos de categorías si están visibles
+        setTimeout(() => actualizarGraficosCategorias(), 100);
+    } else {
+        graficosCategoria.style.display = 'none';
+        graficosEvolucion.style.display = 'none';
+    }
+    
+    // Mostrar/ocultar control de categorías solo en vista tabla
+    document.getElementById('checkCategorias').style.display = vista === 'tabla' ? 'block' : 'none';
+    
+    // Si cambiamos a tabla, cargar datos detallados por defecto
+    if (vista === 'tabla') {
+        if (mostrarCategoriasActivo) {
+            cargarTablaDetallada(periodoActual);
+        }
+    }
+}
+
+function descargarInventarioCSV() {
+    let url = `/api/dashboard/export/inventario-resumen?periodo=${periodoActual}`;
+    if (anioSeleccionado) {
+        url += `&anio=${anioSeleccionado}`;
+    }
+    if (mesSeleccionado && periodoActual === 'diario') {
+        url += `&mes=${mesSeleccionado}`;
+    }
+    window.location = url;
+}
+
+function renderMortalidadChart() {
+    const canvas = document.getElementById('chartMortalidad');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (chartMortalidad) {
+        chartMortalidad.destroy();
+    }
+    chartMortalidad = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: mortalidadLabels,
+            datasets: [{
+                label: 'Gallinas Muertas',
+                data: mortalidadData,
+                borderColor: 'rgba(220, 53, 69, 1)',
+                backgroundColor: 'rgba(220, 53, 69, 0.2)',
+                fill: true,
+                tension: 0.3
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'top'
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Cantidad'
+                    }
+                }
+            }
+        }
+    });
+}
+
+function actualizarLinksExport() {
+    const params = new URLSearchParams();
+    params.set('periodo', periodoActual);
+    if (anioSeleccionado) {
+        params.set('anio', anioSeleccionado);
+    }
+    if (mesSeleccionado && periodoActual === 'diario') {
+        params.set('mes', mesSeleccionado);
+    }
+    const suffix = '?' + params.toString();
+    const links = [
+        { id: 'exportVentasHuevosDiario', reporte: 'ventas-huevos', periodo: 'diario' },
+        { id: 'exportVentasHuevosMensual', reporte: 'ventas-huevos', periodo: 'mensual' },
+        { id: 'exportProduccionDiario', reporte: 'produccion-huevos', periodo: 'diario' },
+        { id: 'exportProduccionMensual', reporte: 'produccion-huevos', periodo: 'mensual' },
+        { id: 'exportDisponibilidad', reporte: 'inventario-disponible', periodo: 'diario' },
+        { id: 'exportMortalidad', reporte: 'mortalidad-gallinas', periodo: 'mensual' },
+        { id: 'exportVentasGallinas', reporte: 'ventas-gallinas', periodo: periodoActual }
+    ];
+    links.forEach(link => {
+        const el = document.getElementById(link.id);
+        if (!el) return;
+        el.href = `/api/dashboard/export/${link.reporte}?periodo=${link.periodo}` + (params.toString() ? '&' + params.toString() : '');
+    });
+}
+
+function fetchReportes() {
+    let url = `/api/dashboard/reportes?periodo=${periodoActual}`;
+    if (anioSeleccionado) {
+        url += `&anio=${anioSeleccionado}`;
+    }
+    if (mesSeleccionado && periodoActual === 'diario') {
+        url += `&mes=${mesSeleccionado}`;
+    }
+    fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            actualizarTablaReportes('ventasDiariasBody', data.ventas_huevos_diarias, fila => `
+                <td>${fila.fecha}</td>
+                <td class="text-center">${fila.huevos}</td>
+                <td class="text-center">${fila.paneles}</td>
+                <td class="text-end">$${Number(fila.total).toFixed(2)}</td>
+            `);
+            actualizarTablaReportes('ventasMensualesBody', data.ventas_huevos_mensuales, fila => `
+                <td>${fila.mes}</td>
+                <td class="text-center">${fila.huevos}</td>
+                <td class="text-center">${fila.paneles}</td>
+                <td class="text-end">$${Number(fila.total).toFixed(2)}</td>
+            `);
+            actualizarTablaReportes('produccionDiariaBody', data.produccion_diaria, fila => `
+                <td>${fila.fecha}</td>
+                <td class="text-center">${fila.huevos}</td>
+                <td class="text-center">${fila.paneles}</td>
+                <td class="text-center">${fila.sobrantes}</td>
+            `);
+            actualizarTablaReportes('produccionMensualBody', data.produccion_mensual, fila => `
+                <td>${fila.mes}</td>
+                <td class="text-center">${fila.huevos}</td>
+                <td class="text-center">${fila.paneles}</td>
+                <td class="text-center">${fila.sobrantes}</td>
+            `);
+            actualizarTablaReportes('disponibilidadBody', data.disponibilidad_huevos, fila => `
+                <td>${fila.nombre}</td>
+                <td class="text-center">${fila.huevos}</td>
+                <td class="text-center">${fila.paneles}</td>
+                <td class="text-center">${fila.sobrantes}</td>
+                <td class="text-end">$${Number(fila.precio).toFixed(2)}</td>
+            `);
+            actualizarTablaReportes('ventasGallinasBody', data.ventas_gallinas, fila => `
+                <td>${fila.fecha}</td>
+                <td class="text-center">${fila.cantidad}</td>
+                <td class="text-end">$${Number(fila.precio_unitario).toFixed(2)}</td>
+                <td class="text-end">$${Number(fila.precio_total).toFixed(2)}</td>
+                <td>${fila.comprador || '-'}</td>
+            `);
+            mortalidadLabels = data.mortalidad.labels;
+            mortalidadData = data.mortalidad.data;
+            renderMortalidadChart();
+        })
+        .catch(error => console.error('Error cargando reportes:', error));
+}
+
+function actualizarTablaReportes(tbodyId, filas, renderRow) {
+    const body = document.getElementById(tbodyId);
+    if (!body) return;
+    body.innerHTML = '';
+    if (!filas || filas.length === 0) {
+        const tr = document.createElement('tr');
+        const colCount = body.closest('table').querySelectorAll('thead th').length;
+        tr.innerHTML = `<td class="text-center text-muted" colspan="${colCount}">Sin datos</td>`;
+        body.appendChild(tr);
+        return;
+    }
+    filas.forEach(fila => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = renderRow(fila);
+        body.appendChild(tr);
+    });
+}
+
+function descargarExcel() {
+    const charts = {};
+    const canvases = [
+        { id: 'chartInventario', key: 'inventario' },
+        { id: 'chartCategorias', key: 'categorias' },
+        { id: 'chartTorta', key: 'torta' },
+        { id: 'chartEvolucion', key: 'evolucion' },
+        { id: 'chartMortalidad', key: 'mortalidad' }
+    ];
+    canvases.forEach(item => {
+        const canvas = document.getElementById(item.id);
+        if (canvas) {
+            charts[item.key] = canvas.toDataURL('image/png');
+        }
+    });
+    const payload = {
+        periodo: periodoActual,
+        anio: anioSeleccionado,
+        mes: mesSeleccionado,
+        charts: charts
+    };
+    const csrfToken = document.getElementById('csrfToken')?.value;
+    fetch('/api/dashboard/export-excel', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            ...(csrfToken ? { 'X-CSRFToken': csrfToken } : {})
+        },
+        body: JSON.stringify(payload)
+    })
+        .then(response => response.blob())
+        .then(blob => {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'reportes_dashboard.xlsx';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+        })
+        .catch(error => console.error('Error descargando Excel:', error));
+}
+
+function cargarDatos(periodo) {
+    let url = `/api/dashboard/datos/${periodo}`;
+    
+    // Agregar filtros de año y mes si están seleccionados
+    if (anioSeleccionado) {
+        url += `/${anioSeleccionado}`;
+        if (mesSeleccionado && periodo === 'diario') {
+            url += `/${mesSeleccionado}`;
+        }
+    }
+    
+    fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            datosActuales = data;
+            actualizarGrafico(data);
+            actualizarTabla(data, periodo);
+        })
+        .catch(error => {
+            console.error('Error cargando datos:', error);
+        });
+}
+
+function cargarTablaDetallada(periodo) {
+    let url = `/api/dashboard/datos-categorias/${periodo}`;
+    
+    // Agregar filtros de año y mes si están seleccionados
+    if (anioSeleccionado) {
+        url += `/${anioSeleccionado}`;
+        if (mesSeleccionado && periodo === 'diario') {
+            url += `/${mesSeleccionado}`;
+        }
+    }
+    
+    fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            actualizarTablaDetallada(data, periodo);
+        })
+        .catch(error => {
+            console.error('Error cargando datos detallados:', error);
+        });
+}
+
+function toggleCategorias() {
+    mostrarCategoriasActivo = document.getElementById('mostrarCategorias').checked;
+    if (mostrarCategoriasActivo) {
+        cargarTablaDetallada(periodoActual);
+    } else {
+        // Cargar tabla simple
+        cargarDatos(periodoActual);
+    }
+}
+
+function actualizarGrafico(data) {
+    const ctx = document.getElementById('chartInventario').getContext('2d');
+    
+    if (chartInventario) {
+        chartInventario.destroy();
+    }
+    
+    // Filtrar datasets para excluir el peso total
+    const datasetsSimples = data.datasets.filter(dataset => dataset.label !== 'Peso Total (g)');
+    
+    chartInventario = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: data.labels,
+            datasets: datasetsSimples
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Producción de Huevos'
+                },
+                legend: {
+                    position: 'top',
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Cantidad de Huevos'
+                    }
+                }
+            }
+        }
+    });
+    
+    // Actualizar gráficos de categorías
+    actualizarGraficosCategorias();
+}
+
+function actualizarGraficosCategorias() {
+    let url = `/api/dashboard/categorias-stats/${periodoActual}`;
+    
+    // Agregar filtros de año y mes si están seleccionados
+    if (anioSeleccionado) {
+        url += `/${anioSeleccionado}`;
+        if (mesSeleccionado && periodoActual === 'diario') {
+            url += `/${mesSeleccionado}`;
+        }
+    }
+    
+    fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            actualizarGraficoBarras(data.barras);
+            actualizarGraficoTorta(data.torta);
+            actualizarGraficoEvolucion(data.evolucion);
+        })
+        .catch(error => {
+            console.error('Error cargando datos de categorías:', error);
+        });
+}
+
+function actualizarGraficoBarras(data) {
+    const ctx = document.getElementById('chartCategorias').getContext('2d');
+    
+    if (chartCategorias) {
+        chartCategorias.destroy();
+    }
+    
+    chartCategorias = new Chart(ctx, {
+        type: 'bar',
+        data: data,
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Cantidad de Huevos'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Categorías'
+                    }
+                }
+            }
+        }
+    });
+}
+
+function actualizarGraficoTorta(data) {
+    const ctx = document.getElementById('chartTorta').getContext('2d');
+    
+    if (chartTorta) {
+        chartTorta.destroy();
+    }
+    
+    chartTorta = new Chart(ctx, {
+        type: 'doughnut',
+        data: data,
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.label || '';
+                            const value = context.parsed;
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = ((value / total) * 100).toFixed(1);
+                            return `${label}: ${value} (${percentage}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+function actualizarGraficoEvolucion(data) {
+    const ctx = document.getElementById('chartEvolucion').getContext('2d');
+    
+    if (chartEvolucion) {
+        chartEvolucion.destroy();
+    }
+    
+    chartEvolucion = new Chart(ctx, {
+        type: 'line',
+        data: data,
+        options: {
+            responsive: true,
+            interaction: {
+                mode: 'index',
+                intersect: false,
+            },
+            plugins: {
+                legend: {
+                    position: 'top'
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Cantidad de Huevos'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: periodoActual === 'diario' ? 'Días' : 'Meses'
+                    }
+                }
+            }
+        }
+    });
+}
+
+function actualizarTabla(data, periodo) {
+    const body = document.getElementById('bodyTabla');
+    
+    // Actualizar solo el primer título del header sin reemplazar todo
+    const firstTh = document.querySelector('#headerTabla th:first-child');
+    firstTh.textContent = periodo === 'diario' ? 'Fecha' : 'Mes';
+    
+    // Actualizar body
+    body.innerHTML = '';
+    data.tabla.forEach(fila => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${periodo === 'diario' ? fila.fecha : fila.mes}</td>
+            <td class="text-center">${fila.total_huevos}</td>
+            <td class="text-success text-center">${fila.huevos_buenos}</td>
+            <td class="text-danger text-center">${fila.huevos_rotos}</td>
+            <td class="text-primary text-center">${fila.peso_total} g</td>
+        `;
+        body.appendChild(tr);
+    });
+}
+
+function actualizarTablaDetallada(data, periodo) {
+    const header = document.getElementById('headerTabla');
+    const body = document.getElementById('bodyTabla');
+    
+    // Crear header con categorías
+    let headerHTML = `
+        <th class="text-white" style="color: #ffffff !important; background-color: #343a40 !important;">${periodo === 'mensual' ? 'Mes' : 'Fecha'}</th>
+        <th class="text-white" style="color: #ffffff !important; background-color: #343a40 !important;">Total</th>
+        <th class="text-white" style="color: #ffffff !important; background-color: #343a40 !important;">Buenos</th>
+        <th class="text-white" style="color: #ffffff !important; background-color: #343a40 !important;">Rotos</th>
+        <th class="text-white" style="color: #ffffff !important; background-color: #343a40 !important;">Peso Total (g)</th>
+    `;
+    
+    // Agregar columnas por categoría
+    if (data.categorias && mostrarCategoriasActivo) {
+        data.categorias.forEach(categoria => {
+            headerHTML += `<th class="text-white text-center" style="color: #ffffff !important; background-color: #343a40 !important;">${categoria}<br><small>(cant/peso)</small></th>`;
+        });
+    }
+    
+    header.innerHTML = headerHTML;
+    
+    // Actualizar body
+    body.innerHTML = '';
+    data.tabla.forEach(fila => {
+        const tr = document.createElement('tr');
+        let rowHTML = `
+            <td><strong>${periodo === 'mensual' ? fila.mes : fila.fecha}</strong></td>
+            <td class="text-center">${fila.total_huevos}</td>
+            <td class="text-success text-center">${fila.huevos_buenos}</td>
+            <td class="text-danger text-center">${fila.huevos_rotos}</td>
+            <td class="text-primary text-center">${fila.peso_total} g</td>
+        `;
+        
+        // Agregar datos por categoría
+        if (data.categorias && mostrarCategoriasActivo && fila.categorias) {
+            data.categorias.forEach(categoria => {
+                const catData = fila.categorias[categoria] || { cantidad: 0, peso: 0 };
+                rowHTML += `<td class="text-center text-muted">
+                    <div class="d-flex flex-column align-items-center">
+                        <span class="badge bg-info mb-1">${catData.cantidad}</span>
+                        <small>${catData.peso} g</small>
+                    </div>
+                </td>`;
+            });
+        }
+        
+        tr.innerHTML = rowHTML;
+        body.appendChild(tr);
+    });
+}
+
+// Función para reenviar confirmación de email
+function resendConfirmation() {
+    // TODO: Implementar endpoint para reenviar confirmación
+    alert('Funcionalidad en desarrollo');
+}
+</script>
+{% endblock %}

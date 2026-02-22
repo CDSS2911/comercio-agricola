@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: #28a745; color: white; padding: 20px; text-align: center; }
+        .content { background: #f8f9fa; padding: 30px; }
+        .button { display: inline-block; background: #28a745; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+        .footer { text-align: center; color: #666; font-size: 12px; padding: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>¡Bienvenido al Sistema!</h2>
+        </div>
+        <div class="content">
+            <h3>Hola {{ user.get_full_name() }}</h3>
+            <p>¡Gracias por registrarte en el Sistema de Gestión!</p>
+            <p>Para completar tu registro y activar tu cuenta, por favor confirma tu dirección de email haciendo clic en el siguiente botón:</p>
+            
+            <a href="{{ url_for('auth.confirm_email', token=token, _external=True) }}" class="button">
+                Confirmar Email
+            </a>
+            
+            <p><strong>Este enlace expirará en 1 hora.</strong></p>
+            <p>Una vez confirmado tu email, podrás acceder a todas las funcionalidades del sistema.</p>
+            <p>Si no te registraste en nuestro sistema, puedes ignorar este email.</p>
+        </div>
+        <div class="footer">
+            <p>Este es un mensaje automático, por favor no respondas a este email.</p>
+            <p>&copy; 2025 Sistema de Gestión</p>
+        </div>
+    </div>
+</body>
+</html>

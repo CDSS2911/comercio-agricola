@@ -1,0 +1,265 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-users me-2"></i>Gestión de Clientes</h2>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('ventas.export_excel_ventas', tabla='clientes', search=search or '') }}" class="btn btn-outline-success">
+            <i class="fas fa-file-excel me-1"></i>Excel
+        </a>
+        <a href="{{ url_for('ventas.nuevo_cliente') }}" class="btn btn-primary">
+            <i class="fas fa-user-plus me-1"></i>Nuevo Cliente
+        </a>
+    </div>
+
+</div>
+<!-- Barra de búsqueda -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-3">
+            <div class="col-md-10">
+                <input type="text" class="form-control" name="search" 
+                       placeholder="Buscar por nombre, apellido, identificación o teléfono..."
+                       value="{{ search or '' }}">
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="fas fa-search me-1"></i>Buscar
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Lista de clientes -->
+{% if clientes.items %}
+<div class="row">
+    {% for cliente in clientes.items %}
+    <div class="col-md-6 col-lg-4 mb-4">
+        <div class="card h-100 {% if cliente.get_saldo_pendiente() > 0 %}border-warning{% endif %}">
+            <div class="card-body">
+                <h5 class="card-title">
+                    <i class="fas fa-user me-2 text-primary"></i>
+                    {{ cliente.get_nombre_completo() }}
+                </h5>
+                
+                <hr>
+                
+                <p class="mb-2">
+                    <small class="text-muted">
+                        <i class="fas fa-phone me-1"></i>{{ cliente.telefono or 'Sin teléfono' }}
+                    </small>
+                </p>
+                
+                {% if cliente.numero_identificacion %}
+                <p class="mb-2">
+                    <small class="text-muted">
+                        <i class="fas fa-id-card me-1"></i>
+                        {{ cliente.tipo_identificacion }}: {{ cliente.numero_identificacion }}
+                    </small>
+                </p>
+                {% endif %}
+                
+                <hr>
+                
+                <!-- Estado de crédito -->
+                <div class="row mb-2">
+                    <div class="col-6">
+                        <small class="text-muted">Límite crédito:</small>
+                    </div>
+                    <div class="col-6 text-end">
+                        <strong class="text-success">${{ "%.2f"|format(cliente.limite_credito) }}</strong>
+                    </div>
+                </div>
+                
+                <div class="row mb-2">
+                    <div class="col-6">
+                        <small class="text-muted">Saldo pendiente:</small>
+                    </div>
+                    <div class="col-6 text-end">
+                        {% set saldo = cliente.get_saldo_pendiente() %}
+                        <strong class="{% if saldo > 0 %}text-danger{% else %}text-success{% endif %}">
+                            ${{ "%.2f"|format(saldo) }}
+                        </strong>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-6">
+                        <small class="text-muted">Crédito disponible:</small>
+                    </div>
+                    <div class="col-6 text-end">
+                        {% set disponible = cliente.get_credito_disponible() %}
+                        <strong class="{% if disponible > 0 %}text-info{% else %}text-muted{% endif %}">
+                            ${{ "%.2f"|format(disponible) }}
+                        </strong>
+                    </div>
+                </div>
+                
+                <!-- Botones de acción -->
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('ventas.cartera_cliente', cliente_id=cliente.id) }}" 
+                       class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-wallet me-1"></i>Ver Cartera
+                    </a>
+                    <a href="{{ url_for('ventas.cartera_cliente', cliente_id=cliente.id) }}" 
+                       class="btn btn-outline-success btn-sm">
+                        <i class="fas fa-dollar-sign me-1"></i>Registrar Pago
+                    </a>
+                    <button class="btn btn-outline-secondary btn-sm"
+                            data-cliente-id="{{ cliente.id }}"
+                            data-cliente-nombre="{{ cliente.get_nombre_completo() }}"
+                            data-cliente-limite="{{ cliente.limite_credito }}"
+                            onclick="editarCliente(this)">
+                        <i class="fas fa-edit me-1"></i>Editar
+                    </button>
+                </div>
+            </div>
+            
+            {% if cliente.get_saldo_pendiente() > 0 %}
+            <div class="card-footer bg-warning ">
+                <small class="text-white">
+                    <i class="fas fa-exclamation-triangle me-1"></i>
+                    Cliente con saldo pendiente
+                </small>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Paginación -->
+{% if clientes.pages > 1 %}
+<nav aria-label="Navegación de clientes">
+    <ul class="pagination justify-content-center">
+        <li class="page-item {% if not clientes.has_prev %}disabled{% endif %}">
+            <a class="page-link" href="{{ url_for('ventas.lista_clientes', page=clientes.prev_num, search=search) }}">
+                Anterior
+            </a>
+        </li>
+        
+        {% for page_num in clientes.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+            {% if page_num %}
+                <li class="page-item {% if page_num == clientes.page %}active{% endif %}">
+                    <a class="page-link" href="{{ url_for('ventas.lista_clientes', page=page_num, search=search) }}">
+                        {{ page_num }}
+                    </a>
+                </li>
+            {% else %}
+                <li class="page-item disabled"><span class="page-link">...</span></li>
+            {% endif %}
+        {% endfor %}
+        
+        <li class="page-item {% if not clientes.has_next %}disabled{% endif %}">
+            <a class="page-link" href="{{ url_for('ventas.lista_clientes', page=clientes.next_num, search=search) }}">
+                Siguiente
+            </a>
+        </li>
+    </ul>
+</nav>
+{% endif %}
+
+{% else %}
+<div class="alert alert-info text-center">
+    <i class="fas fa-info-circle fa-3x mb-3"></i>
+    <h5>No se encontraron clientes</h5>
+    {% if search %}
+        <p>No hay resultados para "{{ search }}"</p>
+        <a href="{{ url_for('ventas.lista_clientes') }}" class="btn btn-outline-primary">
+            Ver todos los clientes
+        </a>
+    {% else %}
+        <p>Comienza registrando tu primer cliente</p>
+        <a href="{{ url_for('ventas.nuevo_cliente') }}" class="btn btn-primary">
+            <i class="fas fa-user-plus me-1"></i>Nuevo Cliente
+        </a>
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- Modal editar limite de crédito -->
+<div class="modal fade" id="modalEditarCredito" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Editar límite de crédito</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" id="formEditarCredito" data-action-base="{{ url_for('ventas.actualizar_credito_cliente', cliente_id=0) }}">
+                <div class="modal-body">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <p class="mb-2">Cliente: <strong id="clienteNombreEditar"></strong></p>
+                    <div class="mb-3">
+                        <label for="limiteCreditoInput" class="form-label">Límite de crédito</label>
+                        <input type="number" class="form-control" id="limiteCreditoInput" name="limite_credito" min="0" step="0.01" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Resumen -->
+<div class="card mt-4">
+    <div class="card-body">
+        <div class="row text-center">
+            <div class="col-md-4">
+                <h3 class="text-primary">{{ clientes.total }}</h3>
+                <p class="text-muted mb-0">Total Clientes</p>
+            </div>
+            <div class="col-md-4">
+                {% set con_saldo = namespace(count=0) %}
+                {% for cliente in clientes.items %}
+                    {% if cliente.get_saldo_pendiente() > 0 %}
+                        {% set con_saldo.count = con_saldo.count + 1 %}
+                    {% endif %}
+                {% endfor %}
+                <h3 class="text-warning">{{ con_saldo.count }}</h3>
+                <p class="text-muted mb-0">Con Saldo Pendiente</p>
+            </div>
+            <div class="col-md-4">
+                {% set al_dia = namespace(count=0) %}
+                {% for cliente in clientes.items %}
+                    {% if cliente.get_saldo_pendiente() == 0 %}
+                        {% set al_dia.count = al_dia.count + 1 %}
+                    {% endif %}
+                {% endfor %}
+                <h3 class="text-success">{{ al_dia.count }}</h3>
+                <p class="text-muted mb-0">Al Día</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function editarCliente(button) {
+    if (!button) return;
+    const clienteId = button.getAttribute('data-cliente-id');
+    const nombre = button.getAttribute('data-cliente-nombre') || '';
+    const limite = button.getAttribute('data-cliente-limite') || '0';
+    const form = document.getElementById('formEditarCredito');
+    const nombreEl = document.getElementById('clienteNombreEditar');
+    const limiteInput = document.getElementById('limiteCreditoInput');
+    
+    if (form && form.dataset.actionBase) {
+        form.action = form.dataset.actionBase.replace('/0', '/' + clienteId);
+    }
+    if (nombreEl) {
+        nombreEl.textContent = nombre;
+    }
+    if (limiteInput) {
+        limiteInput.value = parseFloat(limite).toFixed(2);
+    }
+    
+    const modal = new bootstrap.Modal(document.getElementById('modalEditarCredito'));
+    modal.show();
+}
+</script>
+{% endblock %}

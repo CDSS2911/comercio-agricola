@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2><i class="fas fa-wallet me-2"></i>Cartera - {{ cliente.get_nombre_completo() }}</h2>
+        <p class="text-muted mb-0">
+            {% if cliente.telefono %}
+                <i class="fas fa-phone me-1"></i>{{ cliente.telefono }}
+            {% endif %}
+            {% if cliente.numero_identificacion %}
+                | {{ cliente.tipo_identificacion }}: {{ cliente.numero_identificacion }}
+            {% endif %}
+        </p>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('ventas.export_excel_ventas', tabla='cartera_cliente', cliente_id=cliente.id) }}" class="btn btn-outline-success">
+            <i class="fas fa-file-excel me-1"></i>Excel
+        </a>
+        <a href="{{ url_for('ventas.lista_clientes') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left me-1"></i>Volver
+        </a>
+    </div>
+</div>
+
+<!-- Resumen de crédito -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-info text-white">
+            <div class="card-body text-center">
+                <h3 class="mb-0">${{ "%.2f"|format(cliente.limite_credito) }}</h3>
+                <p class="mb-0">Límite de Crédito</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card {% if cliente.get_saldo_pendiente() > 0 %}bg-danger{% else %}bg-success{% endif %} text-white">
+            <div class="card-body text-center">
+                <h3 class="mb-0">${{ "%.2f"|format(cliente.get_saldo_pendiente()) }}</h3>
+                <p class="mb-0">Saldo Pendiente</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-success text-white">
+            <div class="card-body text-center">
+                <h3 class="mb-0">${{ "%.2f"|format(cliente.get_credito_disponible()) }}</h3>
+                <p class="mb-0">Crédito Disponible</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body text-center">
+                <h3 class="mb-0">{{ ventas_pendientes|length }}</h3>
+                <p class="mb-0">Ventas Pendientes</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Ventas pendientes -->
+<div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="fas fa-receipt me-2"></i>Ventas Pendientes de Pago</h5>
+        <a href="{{ url_for('ventas.nueva_venta') }}" class="btn btn-sm btn-primary">
+            <i class="fas fa-plus me-1"></i>Nueva Venta
+        </a>
+    </div>
+    <div class="card-body">
+        {% if ventas_pendientes %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Número</th>
+                        <th>Fecha</th>
+                        <th>Total</th>
+                        <th>Pagado</th>
+                        <th>Saldo</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for venta in ventas_pendientes %}
+                    <tr>
+                        <td>
+                            <strong>{{ venta.numero_venta }}</strong>
+                        </td>
+                        <td>{{ venta.fecha_venta.strftime('%d/%m/%Y %H:%M') }}</td>
+                        <td>${{ "%.2f"|format(venta.total) }}</td>
+                        <td class="text-success">${{ "%.2f"|format(venta.get_monto_pagado()) }}</td>
+                        <td class="text-danger">
+                            <strong>${{ "%.2f"|format(venta.get_saldo_pendiente()) }}</strong>
+                        </td>
+                        <td>
+                            {% if venta.estado == 'completada' %}
+                                <span class="badge bg-success">Pagada</span>
+                            {% elif venta.estado == 'parcial' %}
+                                <span class="badge bg-warning">Pago Parcial</span>
+                            {% elif venta.estado == 'pendiente' %}
+                                <span class="badge bg-danger">Pendiente</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{{ url_for('ventas.nuevo_pago', venta_id=venta.id) }}" 
+                               class="btn btn-sm btn-success">
+                                <i class="fas fa-dollar-sign me-1"></i>Registrar Pago
+                            </a>
+                            <a href="{{ url_for('ventas.detalle_venta', venta_id=venta.id) }}" 
+                               class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                            {% if venta.get_monto_pagado() == 0 %}
+                            <form method="POST" action="{{ url_for('ventas.anular_venta', venta_id=venta.id) }}" class="d-inline" onsubmit="return confirm('¿Seguro que deseas anular esta venta?');">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                <input type="hidden" name="next" value="{{ request.full_path if request.query_string else request.path }}"/>
+                                <button type="submit" class="btn btn-sm btn-outline-danger">
+                                    <i class="fas fa-ban"></i>
+                                </button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr class="table-active">
+                        <th colspan="2" class="text-end">Total Ventas:</th>
+                        <th>${{ "%.2f"|format(cartera_totales.total_ventas) }}</th>
+                        <th class="text-end">Total Pagado:</th>
+                        <th class="text-success">${{ "%.2f"|format(cartera_totales.total_pagado) }}</th>
+                        <th class="text-end">Total Pendiente:</th>
+                        <th class="text-danger">${{ "%.2f"|format(cartera_totales.total_pendiente) }}</th>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center text-muted py-4">
+            <i class="fas fa-check-circle fa-3x mb-3 text-success"></i>
+            <h5>¡Excelente!</h5>
+            <p>No hay ventas pendientes de pago</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Historial de pagos -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="fas fa-history me-2"></i>Historial de Pagos Recientes</h5>
+    </div>
+    <div class="card-body">
+        {% if pagos %}
+        <div class="table-responsive">
+            <table class="table table-sm">
+                <thead>
+                    <tr>
+                        <th>Número</th>
+                        <th>Fecha</th>
+                        <th>Venta</th>
+                        <th>Monto</th>
+                        <th>Forma de Pago</th>
+                        <th>Recibido Por</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for pago in pagos %}
+                    <tr>
+                        <td><small>{{ pago.numero_pago }}</small></td>
+                        <td>{{ pago.fecha_pago.strftime('%d/%m/%Y %H:%M') }}</td>
+                        <td>
+                            <a href="{{ url_for('ventas.detalle_venta', venta_id=pago.venta_id) }}">
+                                {{ pago.venta.numero_venta }}
+                            </a>
+                        </td>
+                        <td class="text-success">
+                            <strong>${{ "%.2f"|format(pago.monto) }}</strong>
+                        </td>
+                        <td>
+                            {% if pago.forma_pago == 'efectivo' %}
+                                <span class="badge bg-success">Efectivo</span>
+                            {% elif pago.forma_pago == 'transferencia' %}
+                                <span class="badge bg-info">Transferencia</span>
+                            {% elif pago.forma_pago == 'tarjeta' %}
+                                <span class="badge bg-primary">Tarjeta</span>
+                            {% else %}
+                                <span class="badge bg-secondary">{{ pago.forma_pago }}</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ pago.receptor.get_full_name() if pago.receptor else '' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center text-muted py-4">
+            <i class="fas fa-inbox fa-3x mb-3"></i>
+            <p>No hay pagos registrados aún</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

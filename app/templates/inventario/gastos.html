@@ -1,0 +1,285 @@
+{% extends "base.html" %}
+
+{% block title %}Gastos{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h2><i class="fas fa-money-bill-wave me-2"></i>Gastos</h2>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">Inicio</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('inventario.dashboard') }}">Inventario</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Gastos</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-body d-flex justify-content-between align-items-center">
+                    <div>
+                        <strong>Total filtrado:</strong>
+                        <span class="badge bg-success fs-6">${{ "%.2f"|format(total_filtrado) }}</span>
+                    </div>
+                    <a
+                        class="btn btn-outline-success"
+                        href="{{ url_for('inventario.exportar_gastos_excel', fecha_desde=request.args.get('fecha_desde', ''), fecha_hasta=request.args.get('fecha_hasta', ''), tipo=request.args.get('tipo', ''), usuario_id=request.args.get('usuario_id', ''), q=request.args.get('q', '')) }}"
+                    >
+                        <i class="fas fa-file-excel me-2"></i>Descargar XLSX
+                    </a>
+                    <a class="btn btn-outline-primary ms-2" href="{{ url_for('inventario.movimientos_combinados') }}">
+                        <i class="fas fa-scale-balanced me-2"></i>Ver Ventas + Gastos
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-4 mb-4">
+            <div class="card shadow">
+                <div class="card-header">
+                    <h6 class="m-0 font-weight-bold text-primary">Nuevo Gasto</h6>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('inventario.crear_gasto') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="row">
+                            <div class="col-6 mb-3">
+                                <label class="form-label">Fecha</label>
+                                <input type="date" class="form-control" name="fecha" value="{{ today_str }}" required>
+                            </div>
+                            <div class="col-6 mb-3">
+                                <label class="form-label">Hora</label>
+                                <input type="time" class="form-control" name="hora" value="{{ now_str }}" required>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Valor</label>
+                            <input type="number" class="form-control" name="valor" min="0.01" step="0.01" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Tipo</label>
+                            <select class="form-select" name="tipo" required>
+                                <option value="">Selecciona</option>
+                                <option value="insumos">Insumos</option>
+                                <option value="servicios">Servicios</option>
+                                <option value="otros">Otros</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Descripcion</label>
+                            <textarea class="form-control" name="descripcion" rows="3" required></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Usuario en sesion</label>
+                            <input type="text" class="form-control" value="{{ current_user.get_full_name() }} ({{ current_user.username }})" readonly>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-plus me-2"></i>Guardar Gasto
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-8 mb-4">
+            <div class="card shadow">
+                <div class="card-header">
+                    <h6 class="m-0 font-weight-bold text-primary">Filtros</h6>
+                </div>
+                <div class="card-body border-bottom">
+                    <form method="GET" action="{{ url_for('inventario.gastos') }}">
+                        <div class="row g-2">
+                            <div class="col-md-3">
+                                <label class="form-label mb-1">Desde</label>
+                                <input type="date" class="form-control form-control-sm" name="fecha_desde" value="{{ request.args.get('fecha_desde', '') }}">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label mb-1">Hasta</label>
+                                <input type="date" class="form-control form-control-sm" name="fecha_hasta" value="{{ request.args.get('fecha_hasta', '') }}">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label mb-1">Tipo</label>
+                                <select class="form-select form-select-sm" name="tipo">
+                                    <option value="">Todos</option>
+                                    <option value="insumos" {% if request.args.get('tipo') == 'insumos' %}selected{% endif %}>Insumos</option>
+                                    <option value="servicios" {% if request.args.get('tipo') == 'servicios' %}selected{% endif %}>Servicios</option>
+                                    <option value="otros" {% if request.args.get('tipo') == 'otros' %}selected{% endif %}>Otros</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label mb-1">Usuario</label>
+                                <select class="form-select form-select-sm" name="usuario_id">
+                                    <option value="">Todos</option>
+                                    {% for u in usuarios %}
+                                    <option value="{{ u.id }}" {% if request.args.get('usuario_id') == (u.id|string) %}selected{% endif %}>
+                                        {{ u.get_full_name() }} ({{ u.username }})
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-8">
+                                <label class="form-label mb-1">Buscar</label>
+                                <input type="text" class="form-control form-control-sm" name="q" value="{{ request.args.get('q', '') }}" placeholder="Descripcion o usuario">
+                            </div>
+                            <div class="col-md-4 d-flex align-items-end gap-2">
+                                <button type="submit" class="btn btn-sm btn-primary w-100">
+                                    <i class="fas fa-filter me-1"></i>Filtrar
+                                </button>
+                                <a href="{{ url_for('inventario.gastos') }}" class="btn btn-sm btn-outline-secondary w-100">
+                                    Limpiar
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="card-body">
+                    {% if gastos.items %}
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-sm align-middle">
+                            <thead>
+                                <tr>
+                                    <th style="min-width: 130px;">Fecha</th>
+                                    <th style="min-width: 70px;">Hora</th>
+                                    <th style="min-width: 90px;">Valor</th>
+                                    <th style="min-width: 95px;">Tipo</th>
+                                    <th>Descripcion</th>
+                                    <th style="min-width: 140px;">Usuario</th>
+                                    <th style="min-width: 210px;">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for gasto in gastos.items %}
+                                <tr>
+                                    <td>{{ gasto.fecha_hora.strftime('%Y-%m-%d') }}</td>
+                                    <td>{{ gasto.fecha_hora.strftime('%H:%M') }}</td>
+                                    <td>${{ "%.2f"|format(gasto.valor) }}</td>
+                                    <td><span class="badge bg-secondary">{{ gasto.tipo|capitalize }}</span></td>
+                                    <td>{{ gasto.descripcion }}</td>
+                                    <td>{{ gasto.usuario.get_full_name() }}<br><small class="text-muted">{{ gasto.usuario.username }}</small></td>
+                                    <td class="d-flex gap-1">
+                                        <button
+                                            type="button"
+                                            class="btn btn-sm btn-outline-primary editar-gasto-btn"
+                                            data-gasto-id="{{ gasto.id }}"
+                                            data-fecha="{{ gasto.fecha_hora.strftime('%Y-%m-%d') }}"
+                                            data-hora="{{ gasto.fecha_hora.strftime('%H:%M') }}"
+                                            data-valor="{{ '%.2f'|format(gasto.valor) }}"
+                                            data-tipo="{{ gasto.tipo }}"
+                                            data-descripcion="{{ gasto.descripcion }}"
+                                            title="Editar"
+                                        >
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <form method="POST" action="{{ url_for('inventario.eliminar_gasto', gasto_id=gasto.id) }}" onsubmit="return confirm('¿Eliminar este gasto?');">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <button class="btn btn-sm btn-outline-danger" type="submit" title="Eliminar">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {% if gastos.pages > 1 %}
+                    <nav aria-label="Paginacion gastos">
+                        <ul class="pagination pagination-sm mb-0">
+                            <li class="page-item {% if not gastos.has_prev %}disabled{% endif %}">
+                                <a
+                                    class="page-link"
+                                    href="{{ url_for('inventario.gastos', page=gastos.prev_num, fecha_desde=request.args.get('fecha_desde', ''), fecha_hasta=request.args.get('fecha_hasta', ''), tipo=request.args.get('tipo', ''), usuario_id=request.args.get('usuario_id', ''), q=request.args.get('q', '')) }}"
+                                >Anterior</a>
+                            </li>
+                            <li class="page-item disabled"><span class="page-link">Pagina {{ gastos.page }} de {{ gastos.pages }}</span></li>
+                            <li class="page-item {% if not gastos.has_next %}disabled{% endif %}">
+                                <a
+                                    class="page-link"
+                                    href="{{ url_for('inventario.gastos', page=gastos.next_num, fecha_desde=request.args.get('fecha_desde', ''), fecha_hasta=request.args.get('fecha_hasta', ''), tipo=request.args.get('tipo', ''), usuario_id=request.args.get('usuario_id', ''), q=request.args.get('q', '')) }}"
+                                >Siguiente</a>
+                            </li>
+                        </ul>
+                    </nav>
+                    {% endif %}
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-receipt fa-3x text-muted mb-3"></i>
+                        <p class="text-muted mb-0">No hay gastos registrados con estos filtros.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="editarGastoModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Editar Gasto</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editarGastoForm" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-6 mb-3">
+                            <label class="form-label">Fecha</label>
+                            <input type="date" class="form-control" id="edit_fecha" name="fecha" required>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <label class="form-label">Hora</label>
+                            <input type="time" class="form-control" id="edit_hora" name="hora" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Valor</label>
+                        <input type="number" class="form-control" id="edit_valor" name="valor" min="0.01" step="0.01" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Tipo</label>
+                        <select class="form-select" id="edit_tipo" name="tipo" required>
+                            <option value="insumos">Insumos</option>
+                            <option value="servicios">Servicios</option>
+                            <option value="otros">Otros</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Descripcion</label>
+                        <textarea class="form-control" id="edit_descripcion" name="descripcion" rows="3" required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.querySelectorAll('.editar-gasto-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+        const gastoId = this.dataset.gastoId;
+        document.getElementById('edit_fecha').value = this.dataset.fecha;
+        document.getElementById('edit_hora').value = this.dataset.hora;
+        document.getElementById('edit_valor').value = this.dataset.valor;
+        document.getElementById('edit_tipo').value = this.dataset.tipo;
+        document.getElementById('edit_descripcion').value = this.dataset.descripcion;
+        document.getElementById('editarGastoForm').action = `/inventario/gastos/${gastoId}/actualizar`;
+
+        new bootstrap.Modal(document.getElementById('editarGastoModal')).show();
+    });
+});
+</script>
+{% endblock %}

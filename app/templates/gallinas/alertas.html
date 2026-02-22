@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block title %}Alertas de Lotes{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-exclamation-triangle text-warning"></i> Alertas de Lotes</h2>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('gallinas.export_excel_gallinas', tabla='alertas') }}" class="btn btn-outline-success"><i class="fas fa-file-excel"></i> Excel</a>
+            <a href="{{ url_for('gallinas.dashboard') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Volver al Dashboard
+            </a>
+        </div>
+    </div>
+
+    {% if lotes %}
+    <div class="alert alert-danger" role="alert">
+        <h5><i class="fas fa-bell"></i> Lotes que Requieren Atención Urgente</h5>
+        <p class="mb-0">Los siguientes lotes están próximos a completar su ciclo de producción. 
+        Se recomienda planificar la venta de las gallinas antes de que finalice el período productivo.</p>
+    </div>
+
+    <div class="row">
+        {% for item in lotes %}
+        <div class="col-md-6 mb-4">
+            <div class="card border-{{ 'danger' if item.nivel_alerta == 'CRITICO' else 'warning' }}">
+                <div class="card-header bg-{{ 'danger' if item.nivel_alerta == 'CRITICO' else 'warning' }} text-{{ 'white' if item.nivel_alerta == 'CRITICO' else 'dark' }}">
+                    <h5 class="mb-0">
+                        {% if item.nivel_alerta == 'CRITICO' %}
+                        <i class="fas fa-skull-crossbones"></i> CRÍTICO
+                        {% else %}
+                        <i class="fas fa-exclamation-triangle"></i> ALTO
+                        {% endif %}
+                        - Lote {{ item.lote.numero_lote }}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <strong>Raza:</strong><br>
+                            {{ item.lote.raza }}
+                        </div>
+                        <div class="col-6">
+                            <strong>Cantidad Actual:</strong><br>
+                            {{ item.lote.cantidad_actual }} gallinas
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <strong>Ubicación:</strong><br>
+                            {{ item.lote.ubicacion or 'No especificada' }}
+                        </div>
+                        <div class="col-6">
+                            <strong>Fecha Ingreso:</strong><br>
+                            {{ item.lote.fecha_ingreso.strftime('%d/%m/%Y') }}
+                        </div>
+                    </div>
+
+                    <hr>
+
+                    <div class="alert alert-{{ 'danger' if item.nivel_alerta == 'CRITICO' else 'warning' }} mb-3">
+                        <div class="row text-center">
+                            <div class="col-6">
+                                <h4 class="mb-0">{{ item.semanas_produccion }} / {{ item.lote.semanas_produccion_maximas }}</h4>
+                                <small>Semanas de Producción</small>
+                            </div>
+                            <div class="col-6">
+                                <h4 class="mb-0 text-{{ 'danger' if item.nivel_alerta == 'CRITICO' else 'warning' }}">
+                                    {{ item.semanas_restantes }}
+                                </h4>
+                                <small>Semanas Restantes</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="progress mb-3" style="height: 25px;">
+                        <div class="progress-bar bg-{{ 'danger' if item.nivel_alerta == 'CRITICO' else 'warning' }}" 
+                             role="progressbar" 
+                             style="width: {{ (item.semanas_produccion / item.lote.semanas_produccion_maximas * 100) if item.lote.semanas_produccion_maximas > 0 else 0 }}%"
+                             aria-valuenow="{{ item.semanas_produccion }}" 
+                             aria-valuemin="0" 
+                             aria-valuemax="{{ item.lote.semanas_produccion_maximas }}">
+                            {{ ((item.semanas_produccion / item.lote.semanas_produccion_maximas * 100) if item.lote.semanas_produccion_maximas > 0 else 0)|round(1) }}%
+                        </div>
+                    </div>
+
+                    {% if item.nivel_alerta == 'CRITICO' %}
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-circle"></i> 
+                        <strong>URGENTE:</strong> Este lote tiene 2 semanas o menos de vida productiva. 
+                        Se recomienda vender las gallinas inmediatamente para evitar pérdidas.
+                    </div>
+                    {% else %}
+                    <div class="alert alert-warning">
+                        <i class="fas fa-info-circle"></i> 
+                        <strong>ATENCIÓN:</strong> Este lote tiene 4 semanas o menos de vida productiva. 
+                        Planifique la venta de las gallinas próximamente.
+                    </div>
+                    {% endif %}
+
+                    <div class="d-flex justify-content-between mt-3">
+                        <a href="{{ url_for('gallinas.detalle_lote', lote_id=item.lote.id) }}" 
+                           class="btn btn-info">
+                            <i class="fas fa-eye"></i> Ver Detalles
+                        </a>
+                        <a href="{{ url_for('gallinas.vender_gallinas', lote_id=item.lote.id) }}" 
+                           class="btn btn-success">
+                            <i class="fas fa-dollar-sign"></i> Vender Gallinas
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="alert alert-success text-center" role="alert">
+        <i class="fas fa-check-circle fa-3x mb-3"></i>
+        <h4>¡Excelente!</h4>
+        <p class="mb-0">No hay lotes con alertas críticas o altas en este momento. 
+        Todos los lotes tienen más de 4 semanas de vida productiva restante.</p>
+        <a href="{{ url_for('gallinas.dashboard') }}" class="btn btn-primary mt-3">
+            <i class="fas fa-tachometer-alt"></i> Ver Dashboard
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

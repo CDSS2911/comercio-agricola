@@ -1,0 +1,16 @@
+/* ============================================================================
+   TEMA ALTERNATIVO: Rojo Intenso
+   Para usar este tema, incluye este archivo después de style.css en base.html
+   ============================================================================ */
+
+:root {
+    /* Colores Principales - Rojo Más Intenso */
+    --primary-color: #ff0000;           /* Rojo puro */
+    --primary-dark: #cc0000;            /* Rojo muy oscuro */
+    --primary-light: #ff3333;           /* Rojo brillante */
+    
+    /* Puedes mantener el resto igual o personalizarlo */
+    --secondary-color: #000000;         /* Negro absoluto */
+    --secondary-dark: #000000;          /* Negro puro */
+    --secondary-light: #1a1a1a;         /* Gris muy oscuro */
+}

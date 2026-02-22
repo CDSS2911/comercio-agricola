@@ -1,0 +1,204 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% if title %}{{ title }} - Huevos RamboÃ³n{% else %}Huevos RamboÃ³n{% endif %}</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <!-- NavegaciÃ³n -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand d-flex align-items-center" href="{{ url_for('main.index') }}">
+                <img src="{{ url_for('static', filename='Imagenes/assets/huevos_rambo.png') }}" alt="Huevos Rambo" width="28" height="28" class="me-2">
+                Huevos Rambo
+            </a>
+            
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('main.index') }}">Inicio</a>
+                    </li>
+                    {% if current_user.is_authenticated %}
+                        {% set can_panel = can_access_endpoint('main.dashboard') %}
+                        {% set can_inventario = can_access_endpoint('inventario.dashboard') or can_access_endpoint('inventario.lotes') or can_access_endpoint('inventario.nuevo_lote') %}
+                        {% set can_ventas = can_access_endpoint('ventas.ventas_dashboard') or can_access_endpoint('ventas.nueva_venta') or can_access_endpoint('ventas.historial_ventas') or can_access_endpoint('ventas.lista_clientes') %}
+                        {% set can_gallinas = can_access_endpoint('gallinas.dashboard') or can_access_endpoint('gallinas.alertas') %}
+
+                        {% if can_panel %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('main.dashboard') }}">Panel de Control</a>
+                        </li>
+                        {% endif %}
+
+                        {% if can_inventario %}
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                                <i class="fas fa-egg me-1"></i>Inventario
+                            </a>
+                            <ul class="dropdown-menu">
+                                {% if can_access_endpoint('inventario.dashboard') %}
+                                <li><a class="dropdown-item" href="{{ url_for('inventario.dashboard') }}"><i class="fas fa-tachometer-alt me-2"></i>Dashboard</a></li>
+                                {% endif %}
+                                {% if can_access_endpoint('inventario.nuevo_lote') %}
+                                <li><a class="dropdown-item" href="{{ url_for('inventario.nuevo_lote') }}"><i class="fas fa-plus me-2"></i>Nuevo Lote</a></li>
+                                {% endif %}
+                                {% if can_access_endpoint('inventario.lotes') %}
+                                <li><a class="dropdown-item" href="{{ url_for('inventario.lotes') }}"><i class="fas fa-list me-2"></i>Ver Lotes</a></li>
+                                {% endif %}
+                                {% if can_access_endpoint('inventario.categorias') or can_access_endpoint('inventario.pesas') or can_access_endpoint('inventario.gastos') or can_access_endpoint('inventario.movimientos_combinados') %}
+                                <li><hr class="dropdown-divider"></li>
+                                {% endif %}
+                                {% if can_access_endpoint('inventario.categorias') %}
+                                <li><a class="dropdown-item" href="{{ url_for('inventario.categorias') }}"><i class="fas fa-tags me-2"></i>Categorias</a></li>
+                                {% endif %}
+                                {% if can_access_endpoint('inventario.pesas') %}
+                                <li><a class="dropdown-item" href="{{ url_for('inventario.pesas') }}"><i class="fas fa-weight-hanging me-2"></i>Pesas</a></li>
+                                {% endif %}
+                                {% if can_access_endpoint('inventario.gastos') %}
+                                <li><a class="dropdown-item" href="{{ url_for('inventario.gastos') }}"><i class="fas fa-money-bill-wave me-2"></i>Gastos</a></li>
+                                {% endif %}
+                                {% if can_access_endpoint('inventario.movimientos_combinados') %}
+                                <li><a class="dropdown-item" href="{{ url_for('inventario.movimientos_combinados') }}"><i class="fas fa-scale-balanced me-2"></i>Ventas + Gastos</a></li>
+                                {% endif %}
+                            </ul>
+                        </li>
+                        {% endif %}
+
+                        {% if can_ventas %}
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                                <i class="fas fa-cash-register me-1"></i>Ventas
+                            </a>
+                            <ul class="dropdown-menu">
+                                {% if can_access_endpoint('ventas.ventas_dashboard') %}
+                                <li><a class="dropdown-item" href="{{ url_for('ventas.ventas_dashboard') }}"><i class="fas fa-tachometer-alt me-2"></i>Dashboard</a></li>
+                                {% endif %}
+                                {% if can_access_endpoint('ventas.nueva_venta') %}
+                                <li><a class="dropdown-item" href="{{ url_for('ventas.nueva_venta') }}"><i class="fas fa-plus-circle me-2"></i>Nueva Venta</a></li>
+                                {% endif %}
+                                {% if can_access_endpoint('ventas.historial_ventas') %}
+                                <li><a class="dropdown-item" href="{{ url_for('ventas.historial_ventas') }}"><i class="fas fa-history me-2"></i>Historial</a></li>
+                                {% endif %}
+                                {% if can_access_endpoint('ventas.lista_clientes') %}
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" href="{{ url_for('ventas.lista_clientes') }}"><i class="fas fa-users me-2"></i>Clientes</a></li>
+                                {% endif %}
+                            </ul>
+                        </li>
+                        {% endif %}
+
+                        {% if can_gallinas %}
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                                <i class="fas fa-egg me-1"></i>Gallinas
+                            </a>
+                            <ul class="dropdown-menu">
+                                {% if can_access_endpoint('gallinas.dashboard') %}
+                                <li><a class="dropdown-item" href="{{ url_for('gallinas.dashboard') }}"><i class="fas fa-tachometer-alt me-2"></i>Dashboard</a></li>
+                                {% endif %}
+                                {% if can_access_endpoint('gallinas.nuevo_lote') %}
+                                <li><a class="dropdown-item" href="{{ url_for('gallinas.nuevo_lote') }}"><i class="fas fa-plus-circle me-2"></i>Nuevo Lote</a></li>
+                                {% endif %}
+                                {% if can_access_endpoint('gallinas.alertas') %}
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" href="{{ url_for('gallinas.alertas') }}"><i class="fas fa-exclamation-triangle me-2"></i>Alertas</a></li>
+                                {% endif %}
+                            </ul>
+                        </li>
+                        {% endif %}
+
+                        {% if current_user.has_permission('users.view') %}
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                                    Administracion
+                                </a>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" href="{{ url_for('usuarios.gestion') }}"><i class="fas fa-users me-2"></i>Gestion de Usuarios</a></li>
+                                    {% if current_user.has_permission('roles.manage') %}
+                                    <li><a class="dropdown-item" href="{{ url_for('usuarios.roles_permisos') }}"><i class="fas fa-user-shield me-2"></i>Roles y Permisos</a></li>
+                                    {% endif %}
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item" href="#"><i class="fas fa-cogs me-2"></i>Configuracion</a></li>
+                                    <li><a class="dropdown-item" href="#"><i class="fas fa-shield-alt me-2"></i>Seguridad</a></li>
+                                </ul>
+                            </li>
+                        {% endif %}
+                    {% endif %}
+                </ul>
+
+                <ul class="navbar-nav">
+                    {% if current_user.is_authenticated %}
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                                <i class="fas fa-user me-1"></i>{{ current_user.get_full_name() }}
+                            </a>
+                            <ul class="dropdown-menu">
+                                {% if can_access_endpoint('main.dashboard') %}
+                                <li><a class="dropdown-item" href="{{ url_for('main.dashboard') }}">Dashboard</a></li>
+                                {% endif %}
+                                <li><a class="dropdown-item" href="{{ url_for('usuarios.perfil') }}">Mi Perfil</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}">Cerrar SesiÃ³n</a></li>
+                            </ul>
+                        </li>
+                    {% else %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('auth.login') }}">Iniciar SesiÃ³n</a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Mensajes Flash -->
+    <div class="container mt-3">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+
+    <!-- Contenido Principal -->
+    <main class="container my-4">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-primary text-white py-4 mt-5">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-12 text-center">
+                    <p class="mb-0">&copy; 2026 {{ config['APP_NAME'] }}. Todos los derechos reservados.</p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Custom JS -->
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+    
+    {% block scripts %}{% endblock %}
+</body>
+</html>
+
+

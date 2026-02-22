@@ -1,0 +1,592 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-cash-register me-2"></i>Nueva Venta</h2>
+    <a href="{{ url_for('ventas.ventas_dashboard') }}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left me-1"></i>Volver al Dashboard
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <!-- Productos Disponibles -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5><i class="fas fa-boxes me-2"></i>Inventario Disponible</h5>
+            </div>
+            <div class="card-body">
+                {% if inventario %}
+                <div class="row">
+                    {% for item in inventario %}
+                    <div class="col-md-6 mb-3">
+                        <div class="card border-primary">
+                            <div class="card-body">
+                                <h6 class="card-title text-primary">{{ item.nombre }}</h6>
+                                <p class="card-text">
+                                    <small class="text-muted">{{ item.peso_min }}g - {{ item.peso_max }}g</small><br>
+                                    <strong>Disponibles:</strong> {{ item.cantidad_disponible }} huevos 
+                                    ({{ item.cantidad_disponible // 30 }} paneles)<br>
+                                    <strong>Precio:</strong> ${{ "%.2f"|format(item.precio_venta) }} c/u
+                                </p>
+                                <button type="button" class="btn btn-primary btn-sm w-100" 
+                                        onclick='agregarProducto({{ item.id }}, {{ item.nombre|tojson }}, {{ item.precio_venta }}, {{ item.cantidad_disponible }})'
+                                        {% if item.cantidad_disponible == 0 %}disabled{% endif %}>
+                                    <i class="fas fa-plus me-1"></i>Agregar a Venta
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center text-muted py-4">
+                    <i class="fas fa-exclamation-triangle fa-3x mb-3"></i>
+                    <h5>No hay productos disponibles</h5>
+                    <p>No se encontraron huevos disponibles para venta.</p>
+                    <a href="{{ url_for('inventario.dashboard') }}" class="btn btn-primary">
+                        <i class="fas fa-warehouse me-1"></i>Revisar Inventario
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <!-- Carrito de Compras -->
+        <div class="card sticky-top">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-shopping-cart me-2"></i>Carrito de Venta</h5>
+            </div>
+            <div class="card-body">
+                <!-- Tipo de Venta -->
+                <div class="mb-3">
+                    <label class="form-label">Tipo de Venta</label>
+                    <div class="btn-group w-100" role="group">
+                        <input type="radio" class="btn-check" name="tipo_venta" id="contado" value="contado" checked onchange="cambiarTipoVenta()">
+                        <label class="btn btn-outline-success" for="contado">
+                            <i class="fas fa-money-bill-wave me-1"></i>Contado
+                        </label>
+                        
+                        <input type="radio" class="btn-check" name="tipo_venta" id="credito" value="credito" onchange="cambiarTipoVenta()">
+                        <label class="btn btn-outline-warning" for="credito">
+                            <i class="fas fa-credit-card me-1"></i>Crédito
+                        </label>
+                    </div>
+                </div>
+                
+                <!-- Selector de Cliente (solo para crédito) -->
+                <div id="clienteSection" class="mb-3" style="display: none;">
+                    <label for="cliente" class="form-label">Cliente *</label>
+                    <div class="input-group position-relative">
+                        <input type="text" class="form-control" id="buscarCliente" placeholder="Buscar cliente..." autocomplete="off">
+                        <button type="button" class="btn btn-outline-primary" onclick="mostrarModalCliente()">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                        <div id="clienteResultados" class="list-group" style="display: none; position: absolute; top: 100%; left: 0; right: 0; z-index: 1050; max-height: 240px; overflow-y: auto; background: #111;"></div>
+                    </div>
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <input type="hidden" id="clienteId">
+                    <div id="clienteSeleccionado" class="mt-2" style="display: none;">
+                        <div class="alert alert-info py-2">
+                            <strong id="clienteNombre"></strong><br>
+                            <small>Límite: $<span id="clienteLimite"></span> | Saldo: $<span id="clienteSaldo"></span></small>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Lista de Productos -->
+                <div class="mb-3">
+                    <label class="form-label">Productos</label>
+                    <div id="productosCarrito">
+                        <div class="text-center text-muted py-3">
+                            <i class="fas fa-cart-plus fa-2x mb-2"></i>
+                            <p>Agrega productos al carrito</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Resumen -->
+                <div id="resumenVenta" style="display: none;">
+                    <hr>
+                    <div class="row mb-2">
+                        <div class="col">Subtotal:</div>
+                        <div class="col-auto">$<span id="subtotal">0.00</span></div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col">
+                            <input type="number" class="form-control form-control-sm" 
+                                   id="descuento" placeholder="Descuento" min="0" step="0.01" 
+                                   onchange="calcularTotal()">
+                        </div>
+                        <div class="col-auto">-$<span id="montoDescuento">0.00</span></div>
+                    </div>
+                    <hr>
+                    <div class="row mb-3">
+                        <div class="col"><strong>Total:</strong></div>
+                        <div class="col-auto"><strong>$<span id="total">0.00</span></strong></div>
+                    </div>
+                    
+                    <!-- Observaciones -->
+                    <div class="mb-3">
+                        <label for="observaciones" class="form-label">Observaciones</label>
+                        <textarea class="form-control form-control-sm" id="observaciones" rows="2" placeholder="Observaciones opcionales..."></textarea>
+                    </div>
+                    
+                    <!-- Botón Procesar -->
+                    <button type="button" class="btn btn-success w-100" onclick="procesarVenta()" id="btnProcesar">
+                        <i class="fas fa-check-circle me-1"></i>Procesar Venta
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Nuevo Cliente -->
+<div class="modal fade" id="modalNuevoCliente" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Nuevo Cliente</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formNuevoCliente">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Nombre *</label>
+                                <input type="text" class="form-control" name="nombre" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Apellido *</label>
+                                <input type="text" class="form-control" name="apellido" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Teléfono</label>
+                        <input type="tel" class="form-control" name="telefono">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Identificación</label>
+                        <div class="row">
+                            <div class="col-4">
+                                <select class="form-select" name="tipo_identificacion">
+                                    <option value="">Tipo</option>
+                                    <option value="CC">CC</option>
+                                    <option value="CE">CE</option>
+                                    <option value="TI">TI</option>
+                                    <option value="PP">PP</option>
+                                </select>
+                            </div>
+                            <div class="col-8">
+                                <input type="text" class="form-control" name="numero_identificacion" placeholder="Número">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Límite de Crédito</label>
+                        <input type="number" class="form-control" name="limite_credito" min="0" step="0.01" value="0">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="crearClienteRapido()">Crear Cliente</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let carrito = [];
+let subtotal = 0;
+let clienteSeleccionado = null;
+const clientesBase = [
+    {% for cliente in clientes %}
+    {
+        id: {{ cliente.id }},
+        nombre_completo: {{ cliente.get_nombre_completo()|tojson }},
+        limite_credito: {{ "%.2f"|format(cliente.limite_credito) }},
+        saldo_pendiente: {{ "%.2f"|format(cliente.get_saldo_pendiente()) }}
+    }{% if not loop.last %},{% endif %}
+    {% endfor %}
+];
+// Agregar producto al carrito (sin modal)
+function agregarProducto(id, nombre, precio, disponible) {
+    if (disponible <= 0) {
+        alert('No hay unidades disponibles');
+        return;
+    }
+    
+    const existente = carrito.find(item => item.id === id);
+    
+    if (existente) {
+        if (existente.cantidad + 1 > disponible) {
+            alert('No hay más unidades disponibles');
+            return;
+        }
+        existente.cantidad += 1;
+        existente.subtotal = existente.cantidad * existente.precio;
+    } else {
+        carrito.push({
+            id: id,
+            nombre: nombre,
+            precio: precio,
+            cantidad: 1,
+            disponible: disponible,
+            subtotal: precio
+        });
+    }
+    
+    actualizarCarrito();
+}
+
+// Cambiar tipo de venta
+function cambiarTipoVenta() {
+    const tipoVenta = document.querySelector('input[name="tipo_venta"]:checked').value;
+    const clienteSection = document.getElementById('clienteSection');
+    
+    if (tipoVenta === 'credito') {
+        clienteSection.style.display = 'block';
+    } else {
+        clienteSection.style.display = 'none';
+        clienteSeleccionado = null;
+        document.getElementById('clienteId').value = '';
+        document.getElementById('clienteSeleccionado').style.display = 'none';
+    }
+    
+    actualizarBotonProcesar();
+}
+
+// Actualizar carrito visual
+function actualizarCarrito() {
+    const contenedor = document.getElementById('productosCarrito');
+    
+    if (carrito.length === 0) {
+        contenedor.innerHTML = `
+            <div class="text-center text-muted py-3">
+                <i class="fas fa-cart-plus fa-2x mb-2"></i>
+                <p>Agrega productos al carrito</p>
+            </div>
+        `;
+        document.getElementById('resumenVenta').style.display = 'none';
+        return;
+    }
+    
+    let html = '';
+    subtotal = 0;
+    
+    carrito.forEach((item, index) => {
+        subtotal += item.subtotal;
+        html += `
+            <div class="card mb-2">
+                <div class="card-body py-2">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>${item.nombre}</strong><br>
+                            <small class="text-muted">$${item.precio.toFixed(2)} c/u</small>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <button type="button" class="btn btn-sm btn-outline-danger me-2" onclick="cambiarCantidad(${index}, -1)">
+                                <i class="fas fa-minus"></i>
+                            </button>
+                            <input type="number" class="form-control form-control-sm text-center mx-2" 
+                                   style="width: 80px;" min="1" max="${item.disponible}" 
+                                   value="${item.cantidad}" 
+                                   onchange="actualizarCantidad(${index}, this.value)"
+                                   oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+                            <button type="button" class="btn btn-sm btn-outline-success me-2" onclick="cambiarCantidad(${index}, 1)">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                            <button type="button" class="btn btn-sm btn-danger" onclick="eliminarProducto(${index})">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="text-end mt-1">
+                        <strong>$${item.subtotal.toFixed(2)}</strong>
+                        <br><small class="text-muted">${Math.floor(item.cantidad / 30)} paneles, ${item.cantidad % 30} huevos</small>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    contenedor.innerHTML = html;
+    document.getElementById('resumenVenta').style.display = 'block';
+    
+    calcularTotal();
+}
+
+// Cambiar cantidad de producto
+function cambiarCantidad(index, delta) {
+    const item = carrito[index];
+    const nuevaCantidad = item.cantidad + delta;
+    
+    if (nuevaCantidad <= 0) {
+        eliminarProducto(index);
+        return;
+    }
+    
+    if (nuevaCantidad > item.disponible) {
+        alert('No hay suficientes unidades disponibles');
+        return;
+    }
+    
+    item.cantidad = nuevaCantidad;
+    item.subtotal = item.cantidad * item.precio;
+    
+    actualizarCarrito();
+}
+
+// Actualizar cantidad directamente desde el input
+function actualizarCantidad(index, valor) {
+    const item = carrito[index];
+    let nuevaCantidad = parseInt(valor) || 0;
+    
+    // Validar que sea un número válido
+    if (nuevaCantidad <= 0) {
+        alert('La cantidad debe ser mayor a cero');
+        actualizarCarrito();
+        return;
+    }
+    
+    // Validar que no exceda el disponible
+    if (nuevaCantidad > item.disponible) {
+        alert(`Solo hay ${item.disponible} huevos disponibles`);
+        nuevaCantidad = item.disponible;
+    }
+    
+    item.cantidad = nuevaCantidad;
+    item.subtotal = item.cantidad * item.precio;
+    
+    actualizarCarrito();
+}
+
+// Eliminar producto del carrito
+function eliminarProducto(index) {
+    carrito.splice(index, 1);
+    actualizarCarrito();
+}
+
+// Calcular total
+function calcularTotal() {
+    const descuento = parseFloat(document.getElementById('descuento').value) || 0;
+    const total = subtotal - descuento;
+    
+    document.getElementById('subtotal').textContent = subtotal.toFixed(2);
+    document.getElementById('montoDescuento').textContent = descuento.toFixed(2);
+    document.getElementById('total').textContent = total.toFixed(2);
+    
+    actualizarBotonProcesar();
+}
+
+// Actualizar estado del botón procesar
+function actualizarBotonProcesar() {
+    const tipoVenta = document.querySelector('input[name="tipo_venta"]:checked').value;
+    const btnProcesar = document.getElementById('btnProcesar');
+    
+    if (carrito.length === 0) {
+        btnProcesar.disabled = true;
+        return;
+    }
+    
+    if (tipoVenta === 'credito' && !clienteSeleccionado) {
+        btnProcesar.disabled = true;
+        return;
+    }
+    
+    btnProcesar.disabled = false;
+}
+
+// Procesar venta
+function procesarVenta() {
+    if (carrito.length === 0) {
+        alert('Agrega productos al carrito');
+        return;
+    }
+    
+    const tipoVenta = document.querySelector('input[name="tipo_venta"]:checked').value;
+    
+    if (tipoVenta === 'credito' && !clienteSeleccionado) {
+        alert('Selecciona un cliente para venta a crédito');
+        return;
+    }
+    
+    const datos = {
+        tipo_pago: tipoVenta,
+        cliente_id: clienteSeleccionado ? clienteSeleccionado.id : null,
+        descuento: parseFloat(document.getElementById('descuento').value) || 0,
+        observaciones: document.getElementById('observaciones').value,
+        detalles: carrito.map(item => ({
+            categoria_id: item.id,
+            cantidad_huevos: item.cantidad,
+            precio_unitario: item.precio
+        }))
+    };
+    
+    // Confirmar venta
+    const total = parseFloat(document.getElementById('total').textContent);
+    const confirmMsg = `¿Confirmar venta por $${total.toFixed(2)}?`;
+    
+    if (!confirm(confirmMsg)) {
+        return;
+    }
+    
+    // Deshabilitar botón mientras se procesa
+    document.getElementById('btnProcesar').disabled = true;
+    document.getElementById('btnProcesar').innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Procesando...';
+    
+    // Enviar solicitud
+    const csrfToken = document.querySelector('[name=csrf_token]')?.value;
+    fetch('/ventas/procesar', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            ...(csrfToken ? { 'X-CSRFToken': csrfToken } : {})
+        },
+        body: JSON.stringify(datos)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(`Venta procesada exitosamente.\nNúmero: ${data.numero_venta}\nTotal: $${data.total.toFixed(2)}`);
+            
+            // Limpiar carrito y recargar página
+            carrito = [];
+            location.reload();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error procesando la venta');
+    })
+    .finally(() => {
+        document.getElementById('btnProcesar').disabled = false;
+        document.getElementById('btnProcesar').innerHTML = '<i class="fas fa-check-circle me-1"></i>Procesar Venta';
+    });
+}
+
+function normalizarTexto(valor) {
+    return (valor || '').toString().toLowerCase().trim();
+}
+
+function filtrarClientes(search) {
+    const needle = normalizarTexto(search);
+    if (!needle) {
+        return clientesBase;
+    }
+    return clientesBase.filter(cliente => {
+        return normalizarTexto(cliente.nombre_completo).includes(needle);
+    });
+}
+
+function mostrarResultadosClientes(clientes) {
+    const contenedor = document.getElementById('clienteResultados');
+    if (!contenedor) return;
+    
+    if (!clientes || clientes.length === 0) {
+        contenedor.innerHTML = '<div class="list-group-item text-muted">No hay resultados</div>';
+        contenedor.style.display = 'block';
+        return;
+    }
+    
+    contenedor.innerHTML = clientes.map(cliente => `
+        <button type="button" class="list-group-item list-group-item-action" data-cliente-id="${cliente.id}" style="background: #111; color: #fff; border-color: #333; cursor: pointer;">
+            <strong>${cliente.nombre_completo}</strong><br>
+            <small style="color: #bbb;">Limite: $${Number(cliente.limite_credito).toFixed(2)} | Saldo: $${Number(cliente.saldo_pendiente).toFixed(2)}</small>
+        </button>
+    `).join('');
+    contenedor.style.display = 'block';
+}
+
+function ocultarResultadosClientes() {
+    const contenedor = document.getElementById('clienteResultados');
+    if (contenedor) {
+        contenedor.style.display = 'none';
+    }
+}
+
+const buscarClienteInput = document.getElementById('buscarCliente');
+if (buscarClienteInput) {
+    buscarClienteInput.addEventListener('focus', function() {
+        mostrarResultadosClientes(filtrarClientes(this.value));
+    });
+    buscarClienteInput.addEventListener('click', function() {
+        mostrarResultadosClientes(filtrarClientes(this.value));
+    });
+    buscarClienteInput.addEventListener('input', function() {
+        mostrarResultadosClientes(filtrarClientes(this.value));
+    });
+}
+
+const resultadosClientes = document.getElementById('clienteResultados');
+if (resultadosClientes) {
+    resultadosClientes.addEventListener('mousedown', function(e) {
+        const item = e.target.closest('[data-cliente-id]');
+        if (!item) return;
+        const id = parseInt(item.getAttribute('data-cliente-id'), 10);
+        const cliente = clientesBase.find(c => c.id === id);
+        if (cliente) {
+            seleccionarCliente(cliente);
+        }
+        ocultarResultadosClientes();
+        e.preventDefault();
+    });
+}
+
+document.addEventListener('click', function(e) {
+    const input = document.getElementById('buscarCliente');
+    const lista = document.getElementById('clienteResultados');
+    if (!input || !lista) return;
+    if (e.target === input || lista.contains(e.target)) {
+        return;
+    }
+    ocultarResultadosClientes();
+});
+
+function seleccionarCliente(cliente) {
+    clienteSeleccionado = cliente;
+    const clienteIdEl = document.getElementById('clienteId');
+    const nombreEl = document.getElementById('clienteNombre');
+    const limiteEl = document.getElementById('clienteLimite');
+    const saldoEl = document.getElementById('clienteSaldo');
+    const seleccionadoEl = document.getElementById('clienteSeleccionado');
+    const buscarEl = document.getElementById('buscarCliente');
+    
+    if (clienteIdEl) clienteIdEl.value = cliente.id;
+    if (nombreEl) nombreEl.textContent = cliente.nombre_completo;
+    if (limiteEl) limiteEl.textContent = Number(cliente.limite_credito).toFixed(2);
+    if (saldoEl) saldoEl.textContent = Number(cliente.saldo_pendiente).toFixed(2);
+    if (seleccionadoEl) seleccionadoEl.style.display = 'block';
+    if (buscarEl) buscarEl.value = cliente.nombre_completo;
+    
+    actualizarBotonProcesar();
+}
+
+function mostrarModalCliente() {
+    const modal = new bootstrap.Modal(document.getElementById('modalNuevoCliente'));
+    modal.show();
+}
+
+function crearClienteRapido() {
+    // TODO: Implementar creación rápida de cliente
+    alert('Función en desarrollo');
+}
+
+// Inicializar
+document.addEventListener('DOMContentLoaded', function() {
+    actualizarCarrito();
+});
+</script>
+{% endblock %}

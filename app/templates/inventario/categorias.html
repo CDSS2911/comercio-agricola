@@ -1,0 +1,322 @@
+{% extends "base.html" %}
+
+{% block title %}Categorías de Huevos{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h2><i class="fas fa-tags me-2"></i>Categorías de Huevos</h2>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">Inicio</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('inventario.dashboard') }}">Inventario</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Categorías</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <div class="row">
+        <!-- Crear nueva categoría -->
+        {% if current_user.is_admin %}
+        <div class="col-lg-4 mb-4">
+            <div class="card shadow">
+                <div class="card-header">
+                    <h6 class="m-0 font-weight-bold text-primary">Nueva Categoría</h6>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('inventario.crear_categoria') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        
+                        <div class="mb-3">
+                            <label for="nombre" class="form-label">Nombre</label>
+                            <input type="text" class="form-control" id="nombre" name="nombre" 
+                                   placeholder="XL, L, M, S..." required>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-6 mb-3">
+                                <label for="peso_min" class="form-label">Peso Mín (g)</label>
+                                <input type="number" class="form-control" id="peso_min" name="peso_min" 
+                                       step="0.1" placeholder="55.0" required>
+                            </div>
+                            <div class="col-6 mb-3">
+                                <label for="peso_max" class="form-label">Peso Máx (g)</label>
+                                <input type="number" class="form-control" id="peso_max" name="peso_max" 
+                                       step="0.1" placeholder="65.0" required>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="precio_venta" class="form-label">Precio Venta</label>
+                            <input type="number" class="form-control" id="precio_venta" name="precio_venta" 
+                                   step="0.01" placeholder="0.50" value="0">
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-plus me-2"></i>Crear Categoría
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Lista de categorías -->
+        <div class="col-lg-8">
+            <div class="card shadow">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 font-weight-bold text-primary">Categorías Existentes</h6>
+                    <a href="{{ url_for('inventario.export_excel', tabla='categorias') }}" class="btn btn-sm btn-outline-success"><i class="fas fa-file-excel me-1"></i>Excel</a>
+                </div>
+                <div class="card-body">
+                    {% if categorias %}
+                    <div class="table-responsive">
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>Categoría</th>
+                                    <th>Rango de Peso</th>
+                                    <th>Precio Venta</th>
+                                    <th>Estado</th>
+                                    {% if current_user.is_admin %}
+                                    <th>Acciones</th>
+                                    {% endif %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for categoria in categorias %}
+                                <tr>
+                                    <td>
+                                        <strong class="text-primary">{{ categoria.nombre }}</strong>
+                                    </td>
+                                    <td>
+                                        {{ categoria.peso_min }}g - {{ categoria.peso_max }}g
+                                    </td>
+                                    <td>
+                                        {% if categoria.precio_venta > 0 %}
+                                            ${{ "%.2f"|format(categoria.precio_venta) }}
+                                        {% else %}
+                                            <span class="text-muted">No definido</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if categoria.activo %}
+                                            <span class="badge bg-success">Activo</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Inactivo</span>
+                                        {% endif %}
+                                    </td>
+                                    {% if current_user.is_admin %}
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <button class="btn btn-outline-warning" 
+                                                    onclick="editarCategoria({{ categoria.id }})" title="Editar">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            {% if categoria.activo %}
+                                            <button class="btn btn-outline-secondary" 
+                                                    onclick="cambiarEstadoCategoria({{ categoria.id }}, false)" title="Desactivar">
+                                                <i class="fas fa-eye-slash"></i>
+                                            </button>
+                                            {% else %}
+                                            <button class="btn btn-outline-success" 
+                                                    onclick="cambiarEstadoCategoria({{ categoria.id }}, true)" title="Activar">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    {% endif %}
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-tags fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">No hay categorías configuradas.</p>
+                        {% if current_user.is_admin %}
+                        <p class="text-muted">Crea la primera categoría para comenzar a clasificar huevos.</p>
+                        {% else %}
+                        <p class="text-muted">Contacta al administrador para configurar categorías.</p>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Información sobre categorías -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header">
+                    <h6 class="m-0 font-weight-bold text-info">Información sobre Categorías</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6><i class="fas fa-info-circle me-2 text-primary"></i>¿Cómo funcionan?</h6>
+                            <ul>
+                                <li>Cada huevo se clasifica automáticamente según su peso</li>
+                                <li>Los rangos no deben solaparse entre categorías</li>
+                                <li>Si un huevo no encaja en ninguna categoría, queda sin clasificar</li>
+                                <li>Los huevos rotos no se clasifican</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6><i class="fas fa-lightbulb me-2 text-warning"></i>Recomendaciones</h6>
+                            <ul>
+                                <li><strong>XL:</strong> 73g o más</li>
+                                <li><strong>L:</strong> 63g - 72g</li>
+                                <li><strong>M:</strong> 53g - 62g</li>
+                                <li><strong>S:</strong> 43g - 52g</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para editar categoría -->
+<div class="modal fade" id="editarCategoriaModal" tabindex="-1" aria-labelledby="editarCategoriaModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editarCategoriaModalLabel">Editar Categoría</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="editarCategoriaForm">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <input type="hidden" id="categoria_id_edit" name="id" value="">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="nombre_edit" class="form-label">Nombre</label>
+                        <input type="text" class="form-control" id="nombre_edit" name="nombre" required>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-6 mb-3">
+                            <label for="peso_min_edit" class="form-label">Peso Mín (g)</label>
+                            <input type="number" class="form-control" id="peso_min_edit" name="peso_min" 
+                                   step="0.1" required>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <label for="peso_max_edit" class="form-label">Peso Máx (g)</label>
+                            <input type="number" class="form-control" id="peso_max_edit" name="peso_max" 
+                                   step="0.1" required>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="precio_venta_edit" class="form-label">Precio Venta</label>
+                        <input type="number" class="form-control" id="precio_venta_edit" name="precio_venta" 
+                               step="0.01">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Actualizar Categoría</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function editarCategoria(categoriaId) {
+    fetch(`/inventario/categorias/${categoriaId}/editar`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const categoria = data.categoria;
+                
+                // Llenar el formulario
+                document.getElementById('categoria_id_edit').value = categoria.id;
+                document.getElementById('nombre_edit').value = categoria.nombre;
+                document.getElementById('peso_min_edit').value = categoria.peso_min;
+                document.getElementById('peso_max_edit').value = categoria.peso_max;
+                document.getElementById('precio_venta_edit').value = categoria.precio_venta;
+                
+                // Mostrar modal
+                new bootstrap.Modal(document.getElementById('editarCategoriaModal')).show();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error al cargar los datos de la categoría');
+        });
+}
+
+function cambiarEstadoCategoria(categoriaId, activo) {
+    const mensaje = activo ? '¿Activar esta categoría?' : '¿Desactivar esta categoría?';
+    if (confirm(mensaje)) {
+        fetch(`/inventario/categorias/${categoriaId}/cambiar-estado`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrf_token]').value
+            },
+            body: JSON.stringify({activo: activo})
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error al cambiar el estado de la categoría');
+        });
+    }
+}
+
+// Manejar envío del formulario de edición
+document.getElementById('editarCategoriaForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const categoriaId = document.getElementById('categoria_id_edit').value;
+    
+    fetch(`/inventario/categorias/${categoriaId}/actualizar`, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            bootstrap.Modal.getInstance(document.getElementById('editarCategoriaModal')).hide();
+            location.reload();
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error al actualizar la categoría');
+    });
+});
+</script>
+{% endblock %}

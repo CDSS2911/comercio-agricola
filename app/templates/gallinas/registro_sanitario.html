@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+
+{% block title %}Registro Sanitario - {{ lote.numero_lote }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0"><i class="fas fa-syringe"></i> Registro Sanitario - Lote {{ lote.numero_lote }}</h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info mb-4">
+                        <strong>Lote:</strong> {{ lote.numero_lote }} | 
+                        <strong>Cantidad Actual:</strong> {{ lote.cantidad_actual }} gallinas | 
+                        <strong>Raza:</strong> {{ lote.raza }}
+                    </div>
+
+                    <form method="POST" action="{{ url_for('gallinas.registro_sanitario', lote_id=lote.id) }}" enctype="multipart/form-data">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="tipo_tratamiento" class="form-label">Tipo de Tratamiento *</label>
+                                <select class="form-select" id="tipo_tratamiento" name="tipo_tratamiento" required>
+                                    <option value="">Seleccionar tipo...</option>
+                                    <option value="Vacunación">Vacunación</option>
+                                    <option value="Desparasitación">Desparasitación</option>
+                                    <option value="Vitaminas">Vitaminas</option>
+                                    <option value="Antibiótico">Antibiótico</option>
+                                    <option value="Desinfección">Desinfección</option>
+                                    <option value="Otro">Otro</option>
+                                </select>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="producto" class="form-label">Producto/Vacuna *</label>
+                                <input type="text" class="form-control" id="producto" name="producto" 
+                                       placeholder="Nombre del producto" required>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="dosis" class="form-label">Dosis</label>
+                                <input type="text" class="form-control" id="dosis" name="dosis" 
+                                       placeholder="Ej: 0.5ml por ave, 1g por litro">
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="fecha_aplicacion" class="form-label">Fecha de Aplicación *</label>
+                                <input type="date" class="form-control" id="fecha_aplicacion" name="fecha_aplicacion" 
+                                       value="{{ today }}" required>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="fecha_proxima" class="form-label">Próxima Aplicación (Opcional)</label>
+                            <input type="date" class="form-control" id="fecha_proxima" name="fecha_proxima">
+                            <small class="form-text text-muted">Si el tratamiento requiere refuerzo o repetición</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="observaciones" class="form-label">Observaciones</label>
+                            <textarea class="form-control" id="observaciones" name="observaciones" 
+                                      rows="4" placeholder="Detalles adicionales sobre el tratamiento..."></textarea>
+                        </div>
+
+                        <hr>
+                        <h5 class="mb-3"><i class="fas fa-medkit"></i> Separación de Gallinas (Opcional)</h5>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="gallinas_separadas" class="form-label">Gallinas Separadas</label>
+                                <input type="number" class="form-control" id="gallinas_separadas" name="gallinas_separadas" 
+                                       min="0" max="{{ lote.cantidad_actual }}" value="0">
+                                <small class="form-text text-muted">Cantidad de gallinas separadas para tratamiento</small>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="ubicacion_separacion" class="form-label">Ubicación de Separación</label>
+                                <input type="text" class="form-control" id="ubicacion_separacion" name="ubicacion_separacion" 
+                                       placeholder="Ej: Área de Cuarentena, Corral 3">
+                                <small class="form-text text-muted">Dónde fueron separadas las gallinas</small>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="imagen" class="form-label"><i class="fas fa-camera"></i> Evidencia Fotográfica (Opcional)</label>
+                            <input type="file" class="form-control" id="imagen" name="imagen" 
+                                   accept="image/jpeg,image/jpg,image/png,image/gif,image/webp" capture="environment">
+                            <small class="form-text text-muted">
+                                <i class="fas fa-info-circle"></i> La imagen se optimizará automáticamente<br>
+                                <i class="fas fa-check-circle text-success"></i> Formatos: JPG, PNG, GIF, WebP | Tamaño máximo: 5 MB<br>
+                                <i class="fas fa-mobile-alt"></i> En móvil: toque para usar la cámara directamente
+                            </small>
+                        </div>
+
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i> 
+                            <strong>Información:</strong> Este registro se guardará en el historial sanitario del lote 
+                            y servirá para llevar un control de vacunas, tratamientos y desparasitaciones.
+                        </div>
+
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('gallinas.detalle_lote', lote_id=lote.id) }}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Guardar Registro
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Sugerencias de Vacunación -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-lightbulb"></i> Programa de Vacunación Sugerido</h6>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item"><strong>Newcastle:</strong> Cada 3-4 meses</li>
+                        <li class="list-group-item"><strong>Bronquitis Infecciosa:</strong> Cada 3-4 meses</li>
+                        <li class="list-group-item"><strong>Desparasitación:</strong> Cada 2-3 meses</li>
+                        <li class="list-group-item"><strong>Vitaminas:</strong> En períodos de estrés o cambios</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

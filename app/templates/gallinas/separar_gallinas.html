@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+
+{% block title %}Separar Gallinas - Lote {{ lote.numero_lote }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header bg-warning text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-exclamation-triangle"></i> Separar Gallinas del Lote
+                        <span class="badge bg-light text-dark">{{ lote.numero_lote }}</span>
+                    </h4>
+                    <small>Actual: {{ lote.cantidad_actual }} gallinas | Raza: {{ lote.raza }}</small>
+                </div>
+                <div class="card-body">
+                    <form method="POST" enctype="multipart/form-data">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label for="fecha_separacion" class="form-label required">
+                                    <i class="fas fa-calendar"></i> Fecha de Separación
+                                </label>
+                                <input type="date" class="form-control" id="fecha_separacion" name="fecha_separacion" 
+                                       value="{{ datetime.now().strftime('%Y-%m-%d') }}" required>
+                            </div>
+                            
+                            <div class="col-md-4 mb-3">
+                                <label for="hora_separacion" class="form-label required">
+                                    <i class="fas fa-clock"></i> Hora de Separación
+                                </label>
+                                <input type="time" class="form-control" id="hora_separacion" name="hora_separacion" 
+                                       value="{{ datetime.now().strftime('%H:%M') }}" required>
+                            </div>
+                            
+                            <div class="col-md-4 mb-3">
+                                <label for="cantidad" class="form-label required">
+                                    <i class="fas fa-sort-numeric-up"></i> Cantidad de Gallinas
+                                </label>
+                                <input type="number" class="form-control" id="cantidad" name="cantidad" 
+                                       min="1" max="{{ lote.cantidad_actual }}" required>
+                                <small class="form-text text-muted">
+                                    Máximo: {{ lote.cantidad_actual }} gallinas disponibles
+                                </small>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="motivo" class="form-label required">
+                                    <i class="fas fa-clipboard-list"></i> Motivo de Separación
+                                </label>
+                                <select class="form-select" id="motivo" name="motivo" required>
+                                    <option value="">Seleccione un motivo...</option>
+                                    <option value="Enfermedad Respiratoria">Enfermedad Respiratoria</option>
+                                    <option value="Enfermedad Digestiva">Enfermedad Digestiva</option>
+                                    <option value="Lesiones Físicas">Lesiones Físicas</option>
+                                    <option value="Comportamiento Agresivo">Comportamiento Agresivo</option>
+                                    <option value="Bajo Peso">Bajo Peso</option>
+                                    <option value="Cuarentena Preventiva">Cuarentena Preventiva</option>
+                                    <option value="Tratamiento Especial">Tratamiento Especial</option>
+                                    <option value="Observación">En Observación</option>
+                                    <option value="Otro">Otro</option>
+                                </select>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="ubicacion" class="form-label required">
+                                    <i class="fas fa-map-marker-alt"></i> Ubicación de Separación
+                                </label>
+                                <input type="text" class="form-control" id="ubicacion" name="ubicacion" 
+                                       placeholder="Ej: Área de Cuarentena, Corral 3, Zona Aislada" required>
+                                <small class="form-text text-muted">
+                                    Indique dónde se ubicarán las gallinas separadas
+                                </small>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="peso_promedio" class="form-label">
+                                    <i class="fas fa-weight"></i> Peso Promedio (kg)
+                                </label>
+                                <input type="number" class="form-control" id="peso_promedio" name="peso_promedio" 
+                                       step="0.01" min="0" max="5" placeholder="Ej: 1.85">
+                                <small class="form-text text-muted">
+                                    Peso promedio de las gallinas separadas (opcional)
+                                </small>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="imagen" class="form-label">
+                                    <i class="fas fa-camera"></i> Evidencia Fotográfica (Opcional)
+                                </label>
+                                <input type="file" class="form-control" id="imagen" name="imagen" 
+                                       accept="image/jpeg,image/jpg,image/png,image/gif,image/webp" capture="environment">
+                                <small class="form-text text-muted">
+                                    <i class="fas fa-info-circle"></i> La imagen se optimizará automáticamente<br>
+                                    <i class="fas fa-check-circle text-success"></i> Formatos: JPG, PNG, GIF, WebP | Tamaño máximo: 5 MB<br>
+                                    <i class="fas fa-mobile-alt"></i> En móvil: toque para usar la cámara directamente
+                                </small>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="observaciones" class="form-label">
+                                <i class="fas fa-sticky-note"></i> Observaciones
+                            </label>
+                            <textarea class="form-control" id="observaciones" name="observaciones" 
+                                      rows="3" placeholder="Síntomas observados, comportamiento, plan de tratamiento, etc."></textarea>
+                        </div>
+
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i> 
+                            <strong>Información Importante:</strong>
+                            <ul class="mb-0 mt-2">
+                                <li>Las gallinas separadas se registrarán con estado "Separada"</li>
+                                <li>Posteriormente podrá actualizar el estado a: Recuperada, Muerta o Vendida</li>
+                                <li>Este registro es independiente de mortalidad o tratamientos sanitarios</li>
+                                <li>Registre fecha, hora y peso para mejor seguimiento</li>
+                            </ul>
+                        </div>
+
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{{ url_for('gallinas.detalle_lote', lote_id=lote.id) }}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-warning">
+                                <i class="fas fa-save"></i> Registrar Separación
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.required::after {
+    content: " *";
+    color: red;
+}
+</style>
+{% endblock %}

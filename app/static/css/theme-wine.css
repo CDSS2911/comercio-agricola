@@ -1,0 +1,16 @@
+/* ============================================================================
+   TEMA ALTERNATIVO: Rojo Vino Elegante
+   Para usar este tema, incluye este archivo después de style.css en base.html
+   ============================================================================ */
+
+:root {
+    /* Colores Principales - Rojo Vino */
+    --primary-color: #8b0000;           /* Rojo oscuro (Dark Red) */
+    --primary-dark: #660000;            /* Rojo muy oscuro */
+    --primary-light: #a52a2a;           /* Rojo marrón */
+    
+    /* Fondos más suaves */
+    --bg-primary: #0f0f0f;              /* Negro suave */
+    --bg-secondary: #1a1a1a;            /* Gris muy oscuro */
+    --bg-tertiary: #050505;             /* Negro casi puro */
+}

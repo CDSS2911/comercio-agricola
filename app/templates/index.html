@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 mx-auto">
+        <div class="jumbotron bg-primary text-white rounded p-5 mb-4">
+            <div class="container-fluid py-5">
+                <img src="{{ url_for('static', filename='Imagenes/assets/huevos_rambo.png') }}" alt="Imagen de muñeco huevos rambo" class="d-block mx-auto mb-3 w-50">
+                <h1 class="display-4 fw-bold">¡Bienvenido a el sistema de gestión {{ config['APP_NAME'] }}!</h1>
+                <p class="lead">En esta aplicación se puede gestionar todos los aspectos de la granja avicola de manera eficiente.</p>
+                {% if not current_user.is_authenticated %}
+                    <div class="mt-4">
+                        <a class="btn btn-outline-light btn-lg" href="{{ url_for('auth.login') }}" role="button">
+                            <i class="fas fa-sign-in-alt me-2"></i>Iniciar Sesión
+                        </a>
+                    </div>
+                {% else %}
+                    <div class="mt-4">
+                        <a class="btn btn-light btn-lg" href="{{ url_for('main.dashboard') }}" role="button">
+                            <i class="fas fa-tachometer-alt me-2"></i>Ir al Panel de Control
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

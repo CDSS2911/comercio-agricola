@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+
+{% block title %}Gestión de Gallinas{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-egg"></i> Gestión de Gallinas</h2>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('gallinas.export_excel_gallinas', tabla='dashboard') }}" class="btn btn-outline-success"><i class="fas fa-file-excel"></i> Excel</a>
+            <a href="{{ url_for('gallinas.alertas') }}" class="btn btn-warning me-2">
+                <i class="fas fa-exclamation-triangle"></i> Ver Alertas
+                {% if lotes_criticos > 0 %}
+                <span class="badge bg-danger">{{ lotes_criticos }}</span>
+                {% endif %}
+            </a>
+            <a href="{{ url_for('gallinas.nuevo_lote') }}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Nuevo Lote
+            </a>
+        </div>
+    </div>
+
+    <!-- Estadísticas Generales -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card text-white bg-primary">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="fas fa-layer-group"></i> Total de Lotes Activos</h5>
+                    <h2 class="mb-0">{{ lotes|length }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-white bg-success">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="fas fa-egg"></i> Total de Gallinas</h5>
+                    <h2 class="mb-0">{{ total_gallinas }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-white {% if lotes_criticos > 0 %}bg-danger{% else %}bg-warning{% endif %}">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="fas fa-bell"></i> Lotes con Alerta</h5>
+                    <h2 class="mb-0">
+                        <span class="badge bg-danger me-1">{{ lotes_criticos }} CRÍTICOS</span>
+                        <span class="badge bg-warning">{{ lotes_altos }} ALTOS</span>
+                    </h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla de Lotes -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-list"></i> Lotes Activos</h5>
+        </div>
+        <div class="card-body">
+            {% if lotes %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Alerta</th>
+                            <th>Número de Lote</th>
+                            <th>Cantidad</th>
+                            <th>Ubicación</th>
+                            <th>Edad (semanas)</th>
+                            <th>Semanas Restantes</th>
+                            <th>Mortalidad</th>
+                            <th>Fecha Ingreso</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in lotes %}
+                        <tr class="{% if item.nivel_alerta == 'CRITICO' %}table-danger
+                                    {% elif item.nivel_alerta == 'ALTO' %}table-warning
+                                    {% elif item.nivel_alerta == 'MEDIO' %}table-info{% endif %}">
+                            <td>
+                                {% if item.nivel_alerta == 'CRITICO' %}
+                                <span class="badge bg-danger">
+                                    <i class="fas fa-skull-crossbones"></i> CRÍTICO
+                                </span>
+                                {% elif item.nivel_alerta == 'ALTO' %}
+                                <span class="badge bg-warning text-dark">
+                                    <i class="fas fa-exclamation-triangle"></i> ALTO
+                                </span>
+                                {% elif item.nivel_alerta == 'MEDIO' %}
+                                <span class="badge bg-info">
+                                    <i class="fas fa-info-circle"></i> MEDIO
+                                </span>
+                                {% else %}
+                                <span class="badge bg-success">
+                                    <i class="fas fa-check-circle"></i> BAJO
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td><strong>{{ item.lote.numero_lote }}</strong></td>
+                            <!-- <td>{{ item.lote.raza }}</td> -->
+                            <td>
+                                <strong>{{ item.lote.cantidad_actual }}</strong> / {{ item.lote.cantidad_inicial }}
+                                <small class="text-muted">
+                                    ({{ ((item.lote.cantidad_actual / item.lote.cantidad_inicial * 100) if item.lote.cantidad_inicial > 0 else 0)|round(1) }}%)
+                                </small>
+                            </td>
+                            <td>{{ item.lote.ubicacion or '-' }}</td>
+                            <td>
+                                <strong>{{ item.edad_actual }}</strong> / {{ item.lote.semanas_produccion_maximas }}
+                                <br><small class="text-muted">Produciendo: {{ item.semanas_produccion }} semanas</small>
+                                <div class="progress" style="height: 5px;">
+                                    <div class="progress-bar 
+                                        {% if item.nivel_alerta == 'CRITICO' %}bg-danger
+                                        {% elif item.nivel_alerta == 'ALTO' %}bg-warning
+                                        {% elif item.nivel_alerta == 'MEDIO' %}bg-info
+                                        {% else %}bg-success{% endif %}"
+                                        role="progressbar"
+                                        style="width: {{ (item.edad_actual / item.lote.semanas_produccion_maximas * 100) if item.lote.semanas_produccion_maximas > 0 else 0 }}%">
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <strong class="
+                                    {% if item.nivel_alerta == 'CRITICO' %}text-danger
+                                    {% elif item.nivel_alerta == 'ALTO' %}text-warning
+                                    {% elif item.nivel_alerta == 'MEDIO' %}text-info
+                                    {% else %}text-success{% endif %}">
+                                    {{ item.semanas_restantes }} semanas
+                                </strong>
+                            </td>
+                            <td>
+                                {{ item.mortalidad_total }} 
+                                <small class="text-muted">({{ item.tasa_mortalidad }}%)</small>
+                            </td>
+                            <td>{{ item.lote.fecha_ingreso.strftime('%d/%m/%Y') }}</td>
+                            <td>
+                                <div class="btn-group" role="group">
+                                    <a href="{{ url_for('gallinas.detalle_lote', lote_id=item.lote.id) }}" 
+                                       class="btn btn-sm btn-info" title="Ver Detalles">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <a href="{{ url_for('gallinas.registrar_mortalidad', lote_id=item.lote.id) }}" 
+                                       class="btn btn-sm btn-warning" title="Registrar Mortalidad">
+                                        <i class="fas fa-plus"></i>
+                                    </a>
+                                    <a href="{{ url_for('gallinas.vender_gallinas', lote_id=item.lote.id) }}" 
+                                       class="btn btn-sm btn-success" title="Vender Gallinas">
+                                        <i class="fas fa-dollar-sign"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="alert alert-info text-center">
+                <i class="fas fa-info-circle"></i> No hay lotes activos registrados.
+                <br>
+                <a href="{{ url_for('gallinas.nuevo_lote') }}" class="btn btn-primary mt-3">
+                    <i class="fas fa-plus"></i> Crear Primer Lote
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Información sobre niveles de alerta -->
+    <div class="card mt-4">
+        <div class="card-header">
+            <h6 class="mb-0"><i class="fas fa-info-circle"></i> Niveles de Alerta</h6>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-3">
+                    <span class="badge bg-danger"><i class="fas fa-skull-crossbones"></i> CRÍTICO</span>
+                    <p class="mb-0 small">≤ 2 semanas restantes</p>
+                </div>
+                <div class="col-md-3">
+                    <span class="badge bg-warning text-dark"><i class="fas fa-exclamation-triangle"></i> ALTO</span>
+                    <p class="mb-0 small">≤ 4 semanas restantes</p>
+                </div>
+                <div class="col-md-3">
+                    <span class="badge bg-info"><i class="fas fa-info-circle"></i> MEDIO</span>
+                    <p class="mb-0 small">≤ 8 semanas restantes</p>
+                </div>
+                <div class="col-md-3">
+                    <span class="badge bg-success"><i class="fas fa-check-circle"></i> BAJO</span>
+                    <p class="mb-0 small">> 8 semanas restantes</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

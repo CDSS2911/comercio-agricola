@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-receipt me-2"></i>Detalle Venta {{ venta.numero_venta }}</h2>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('ventas.export_excel_ventas', tabla='detalle_venta', venta_id=venta.id) }}" class="btn btn-outline-success">
+            <i class="fas fa-file-excel me-1"></i>Excel
+        </a>
+        <a href="{{ url_for('ventas.historial_ventas') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left me-1"></i>Volver
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-4 mb-3">
+        <div class="card">
+            <div class="card-body">
+                <p class="mb-1"><strong>Fecha:</strong> {{ venta.fecha_venta.strftime('%d/%m/%Y %H:%M') }}</p>
+                <p class="mb-1"><strong>Cliente:</strong> {{ venta.cliente.get_nombre_completo() if venta.cliente else 'N/A' }}</p>
+                <p class="mb-1"><strong>Tipo:</strong> {{ venta.tipo_pago|capitalize }}</p>
+                <p class="mb-1"><strong>Estado:</strong> {{ venta.estado|capitalize }}</p>
+                <p class="mb-0"><strong>Total:</strong> ${{ "%.2f"|format(venta.total) }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-8 mb-3">
+        <div class="card">
+            <div class="card-body">
+                <h6>Acciones</h6>
+                {% if venta.tipo_pago == 'credito' and venta.estado in ['pendiente', 'parcial'] %}
+                <a href="{{ url_for('ventas.nuevo_pago', venta_id=venta.id) }}" class="btn btn-success btn-sm">
+                    <i class="fas fa-dollar-sign me-1"></i>Registrar Pago
+                </a>
+                {% endif %}
+                {% if venta.estado != 'cancelada' and venta.get_monto_pagado() == 0 %}
+                <form method="POST" action="{{ url_for('ventas.anular_venta', venta_id=venta.id) }}" class="d-inline" onsubmit="return confirm('¿Anular esta venta?');">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <input type="hidden" name="next" value="{{ request.full_path if request.query_string else request.path }}"/>
+                    <button type="submit" class="btn btn-danger btn-sm">
+                        <i class="fas fa-ban me-1"></i>Anular Venta
+                    </button>
+                </form>
+                {% else %}
+                <span class="badge bg-secondary">No anulable (tiene pagos o ya esta cancelada)</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">Detalles</h5>
+    </div>
+    <div class="card-body">
+        {% if venta.detalles.count() > 0 %}
+        <div class="table-responsive">
+            <table class="table table-sm">
+                <thead>
+                    <tr>
+                        <th>Categoria</th>
+                        <th>Cantidad Huevos</th>
+                        <th>Paneles</th>
+                        <th>Precio Unitario</th>
+                        <th>Subtotal</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for det in venta.detalles %}
+                    <tr>
+                        <td>{{ det.categoria.nombre if det.categoria else 'N/A' }}</td>
+                        <td>{{ det.cantidad_huevos }}</td>
+                        <td>{{ det.cantidad_paneles }}</td>
+                        <td>${{ "%.2f"|format(det.precio_unitario) }}</td>
+                        <td>${{ "%.2f"|format(det.subtotal) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,283 @@
+{% extends "base.html" %}
+
+{% block title %}Inventario de Huevos{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h2><i class="fas fa-egg me-2"></i>Inventario de Huevos</h2>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">Inicio</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Inventario</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    <!-- Estadísticas del día -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-primary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Lotes Hoy</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.lotes_hoy }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-clipboard-list fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-warning shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Lotes Activos</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.lotes_activos }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-clock fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-success shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Huevos Hoy</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.total_huevos_hoy }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-egg fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-danger shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">Huevos Rotos</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.huevos_rotos_hoy }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-heartbeat fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Acciones rápidas -->
+        <div class="col-lg-4 mb-4">
+            <div class="card shadow">
+                <div class="card-header">
+                    <h6 class="m-0 font-weight-bold text-primary">Acciones Rápidas</h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('inventario.nuevo_lote') }}" class="btn btn-primary">
+                            <i class="fas fa-plus me-2"></i>Nuevo Lote de Recolección
+                        </a>
+                        <a href="{{ url_for('inventario.lotes') }}" class="btn btn-outline-primary">
+                            <i class="fas fa-list me-2"></i>Ver Todos los Lotes
+                        </a>
+                        {% if current_user.is_admin %}
+                        <a href="{{ url_for('inventario.categorias') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-tags me-2"></i>Gestionar Categorías
+                        </a>
+                        <a href="{{ url_for('inventario.pesas') }}" class="btn btn-outline-dark">
+                            <i class="fas fa-weight-hanging me-2"></i>Configurar Pesas
+                        </a>
+                        <a href="{{ url_for('inventario.gastos') }}" class="btn btn-outline-warning">
+                            <i class="fas fa-money-bill-wave me-2"></i>Registrar Gastos
+                        </a>
+                        <a href="{{ url_for('inventario.movimientos_combinados') }}" class="btn btn-outline-success">
+                            <i class="fas fa-scale-balanced me-2"></i>Ver Ventas + Gastos
+                        </a>
+                        {% endif %}
+                        <a href="{{ url_for('inventario.reportes') }}" class="btn btn-outline-info">
+                            <i class="fas fa-chart-bar me-2"></i>Ver Reportes
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Inventario por categorías -->
+        <div class="col-lg-8 mb-4">
+            <div class="card shadow">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 font-weight-bold text-primary">Inventario por Categorías</h6>
+                    <a href="{{ url_for('inventario.export_excel', tabla='dashboard_inventario') }}" class="btn btn-sm btn-outline-success"><i class="fas fa-file-excel me-1"></i>Excel</a>
+                </div>
+                <div class="card-body">
+                    {% if inventario %}
+                    <div class="table-responsive">
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>Categoría</th>
+                                    <th>Rango de Peso</th>
+                                    <th>Cantidad</th>
+                                    <th>Panales</th>
+                                    <th>Huevos Libres</th>
+                                    <th>Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in inventario %}
+                                <tr>
+                                    <td><strong>{{ item.nombre }}</strong></td>
+                                    <td>{{ item.peso_min }}g - {{ item.peso_max }}g</td>
+                                    <td>
+                                        <span class="badge bg-primary fs-6">{{ item.cantidad or 0 }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-success fs-6">{{ ((item.cantidad or 0) // 30) }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info fs-6">{{ ((item.cantidad or 0) % 30) }}</span>
+                                    </td>
+                                    <td>
+                                        {% if item.cantidad > 50 %}
+                                            <span class="badge bg-success">Stock Alto</span>
+                                        {% elif item.cantidad > 20 %}
+                                            <span class="badge bg-warning">Stock Medio</span>
+                                        {% elif item.cantidad > 0 %}
+                                            <span class="badge bg-danger">Stock Bajo</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Sin Stock</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-egg fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">No hay inventario disponible.</p>
+                        <p class="text-muted">Comienza creando categorías y registrando huevos.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lotes recientes -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 font-weight-bold text-primary">Lotes Recientes</h6>
+                    <div class="d-flex gap-2">
+                        <a href="{{ url_for('inventario.export_excel', tabla='lotes') }}" class="btn btn-sm btn-outline-success">
+                            <i class="fas fa-file-excel me-1"></i>Excel
+                        </a>
+                        <a href="{{ url_for('inventario.lotes') }}" class="btn btn-sm btn-primary">Ver Todos</a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if lotes_recientes %}
+                    <div class="table-responsive">
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>Número de Lote</th>
+                                    <th>Fecha</th>
+                                    <th>Usuario</th>
+                                    <th>Estado</th>
+                                    <th>Total Huevos</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for lote in lotes_recientes %}
+                                <tr>
+                                    <td><strong>{{ lote.numero_lote }}</strong></td>
+                                    <td>{{ lote.fecha_recoleccion.strftime('%d/%m/%Y') }}</td>
+                                    <td>{{ lote.usuario.get_full_name() }}</td>
+                                    <td>
+                                        {% if lote.estado == 'COMPLETADO' %}
+                                            <span class="badge bg-success">Completado</span>
+                                        {% elif lote.estado == 'EN_PROCESO' %}
+                                            <span class="badge bg-warning">En Proceso</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">{{ lote.estado }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-primary">{{ lote.total_huevos }}</span>
+                                        {% if lote.huevos_rotos > 0 %}
+                                            <span class="badge bg-danger ms-1">{{ lote.huevos_rotos }} rotos</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if lote.estado == 'EN_PROCESO' and (lote.usuario_id == current_user.id or current_user.is_admin) %}
+                                            <a href="{{ url_for('inventario.pesar_huevos', lote_id=lote.id) }}" 
+                                               class="btn btn-sm btn-primary" title="Continuar pesaje">
+                                                <i class="fas fa-weight-hanging"></i>
+                                            </a>
+                                        {% else %}
+                                            <button class="btn btn-sm btn-outline-info" 
+                                                    onclick="verDetallesLote({{ lote.id }})" title="Ver detalles">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-clipboard-list fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">No hay lotes registrados.</p>
+                        <a href="{{ url_for('inventario.nuevo_lote') }}" class="btn btn-primary">
+                            Crear Primer Lote
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.border-left-primary { border-left: 0.25rem solid #4e73df !important; }
+.border-left-success { border-left: 0.25rem solid #1cc88a !important; }
+.border-left-info { border-left: 0.25rem solid #36b9cc !important; }
+.border-left-warning { border-left: 0.25rem solid #f6c23e !important; }
+.border-left-danger { border-left: 0.25rem solid #e74a3b !important; }
+</style>
+
+<script>
+function verDetallesLote(loteId) {
+    // Implementar vista de detalles del lote
+    window.location.href = `/inventario/lotes/${loteId}/ver`;
+}
+</script>
+{% endblock %}
+
+

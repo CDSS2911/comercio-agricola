@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block title %}Vender Gallinas - {{ lote.numero_lote }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0"><i class="fas fa-dollar-sign"></i> Vender Gallinas - Lote {{ lote.numero_lote }}</h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info mb-4">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <strong>Lote:</strong> {{ lote.numero_lote }}<br>
+                                <strong>Cantidad Disponible:</strong> {{ lote.cantidad_actual }} gallinas
+                            </div>
+                            <div class="col-md-6">
+                                <strong>Semanas de Producción:</strong> {{ lote.get_semanas_produccion() }}<br>
+                                <strong>Semanas Restantes:</strong> {{ lote.get_semanas_restantes() }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <form method="POST" action="{{ url_for('gallinas.vender_gallinas', lote_id=lote.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="cantidad" class="form-label">Cantidad a Vender *</label>
+                                <input type="number" class="form-control" id="cantidad" name="cantidad" 
+                                       min="1" max="{{ lote.cantidad_actual }}" required>
+                                <small class="form-text text-muted">Disponible: {{ lote.cantidad_actual }} gallinas</small>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="precio_unitario" class="form-label">Precio Unitario *</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input type="number" class="form-control" id="precio_unitario" name="precio_unitario" 
+                                           min="0" step="0.01" placeholder="0.00" required>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="fecha_venta" class="form-label">Fecha de Venta *</label>
+                                <input type="date" class="form-control" id="fecha_venta" name="fecha_venta" 
+                                       value="{{ today }}" required>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="precio_total" class="form-label">Precio Total</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input type="text" class="form-control" id="precio_total" 
+                                           placeholder="0.00" readonly>
+                                </div>
+                                <small class="form-text text-muted">Calculado automáticamente</small>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="comprador" class="form-label">Comprador</label>
+                            <input type="text" class="form-control" id="comprador" name="comprador" 
+                                   placeholder="Nombre del comprador o empresa">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="observaciones" class="form-label">Observaciones</label>
+                            <textarea class="form-control" id="observaciones" name="observaciones" 
+                                      rows="3" placeholder="Detalles adicionales sobre la venta..."></textarea>
+                        </div>
+
+                        <div class="alert alert-warning">
+                            <i class="fas fa-info-circle"></i> 
+                            <strong>Información:</strong> Esta venta reducirá la cantidad actual de gallinas en el lote. 
+                            Si vende todas las gallinas, el lote se marcará como finalizado automáticamente.
+                        </div>
+
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('gallinas.detalle_lote', lote_id=lote.id) }}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-check"></i> Registrar Venta
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Calcular precio total automáticamente
+document.addEventListener('DOMContentLoaded', function() {
+    const cantidadInput = document.getElementById('cantidad');
+    const precioUnitarioInput = document.getElementById('precio_unitario');
+    const precioTotalInput = document.getElementById('precio_total');
+
+    function calcularPrecioTotal() {
+        const cantidad = parseFloat(cantidadInput.value) || 0;
+        const precioUnitario = parseFloat(precioUnitarioInput.value) || 0;
+        const precioTotal = cantidad * precioUnitario;
+        precioTotalInput.value = precioTotal.toFixed(2);
+    }
+
+    cantidadInput.addEventListener('input', calcularPrecioTotal);
+    precioUnitarioInput.addEventListener('input', calcularPrecioTotal);
+});
+</script>
+{% endblock %}

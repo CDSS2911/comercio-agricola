@@ -1,0 +1,211 @@
+{% extends "base.html" %}
+
+{% block title %}Lotes de Recolección{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h2><i class="fas fa-clipboard-list me-2"></i>Lotes de Recolección</h2>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">Inicio</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('inventario.dashboard') }}">Inventario</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Lotes</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    <!-- Filtros y acciones -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 font-weight-bold text-primary">Filtros y Acciones</h6>
+                    <div class="d-flex gap-2">
+                        <a href="{{ url_for('inventario.export_excel', tabla='lotes', estado=request.args.get('estado', '')) }}" class="btn btn-outline-success">
+                            <i class="fas fa-file-excel me-2"></i>Excel
+                        </a>
+                        <a href="{{ url_for('inventario.nuevo_lote') }}" class="btn btn-primary">
+                            <i class="fas fa-plus me-2"></i>Nuevo Lote
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <form method="GET" class="row g-3">
+                        <div class="col-md-4">
+                            <label for="estado" class="form-label">Estado</label>
+                            <select class="form-select" id="estado" name="estado">
+                                <option value="">Todos los estados</option>
+                                <option value="EN_PROCESO" {{ 'selected' if request.args.get('estado') == 'EN_PROCESO' }}>En Proceso</option>
+                                <option value="COMPLETADO" {{ 'selected' if request.args.get('estado') == 'COMPLETADO' }}>Completado</option>
+                                <option value="CANCELADO" {{ 'selected' if request.args.get('estado') == 'CANCELADO' }}>Cancelado</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">&nbsp;</label>
+                            <button type="submit" class="btn btn-success d-block">
+                                <i class="fas fa-search me-1"></i>Filtrar
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lista de lotes -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header">
+                    <h6 class="m-0 font-weight-bold text-primary">Lista de Lotes</h6>
+                </div>
+                <div class="card-body">
+                    {% if lotes.items %}
+                    <div class="table-responsive">
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>Número de Lote</th>
+                                    <th>Fecha Recolección</th>
+                                    <th>Encargado</th>
+                                    <th>Estado</th>
+                                    <th>Huevos</th>
+                                    <th>Peso Total</th>
+                                    <th>Huevos Rotos</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for lote in lotes.items %}
+                                <tr class="{{ 'table-warning' if lote.estado == 'EN_PROCESO' else '' }}">
+                                    <td><strong>{{ lote.numero_lote }}</strong></td>
+                                    <td>{{ lote.fecha_recoleccion.strftime('%d/%m/%Y') }}</td>
+                                    <td>{{ lote.usuario.get_full_name() }}</td>
+                                    <td>
+                                        {% if lote.estado == 'COMPLETADO' %}
+                                            <span class="badge bg-success">Completado</span>
+                                        {% elif lote.estado == 'EN_PROCESO' %}
+                                            <span class="badge bg-warning">En Proceso</span>
+                                        {% elif lote.estado == 'CANCELADO' %}
+                                            <span class="badge bg-danger">Cancelado</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-primary fs-6">{{ lote.total_huevos }}</span>
+                                    </td>
+                                    <td>
+                                        {% if lote.total_peso > 0 %}
+                                            {{ "%.1f"|format(lote.total_peso) }}g
+                                        {% else %}
+                                            <span class="text-muted">0g</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if lote.huevos_rotos > 0 %}
+                                            <span class="badge bg-danger">{{ lote.huevos_rotos }}</span>
+                                        {% else %}
+                                            <span class="text-muted">0</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            {% if lote.estado == 'EN_PROCESO' and (lote.usuario_id == current_user.id or current_user.is_admin) %}
+                                            <a href="{{ url_for('inventario.pesar_huevos', lote_id=lote.id) }}" 
+                                               class="btn btn-primary" title="Continuar pesaje">
+                                                <i class="fas fa-weight-hanging"></i>
+                                            </a>
+                                            {% endif %}
+                                            
+                                            <a href="{{ url_for('inventario.ver_detalle_lote', lote_id=lote.id) }}" 
+                                               class="btn btn-outline-info" title="Ver detalles">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Paginación -->
+                    {% if lotes.pages > 1 %}
+                    <nav aria-label="Paginación de lotes">
+                        <ul class="pagination justify-content-center">
+                            {% if lotes.has_prev %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('inventario.lotes', page=lotes.prev_num, estado=request.args.get('estado', '')) }}">
+                                    Anterior
+                                </a>
+                            </li>
+                            {% endif %}
+                            
+                            {% for page_num in lotes.iter_pages() %}
+                                {% if page_num %}
+                                    {% if page_num != lotes.page %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="{{ url_for('inventario.lotes', page=page_num, estado=request.args.get('estado', '')) }}">
+                                            {{ page_num }}
+                                        </a>
+                                    </li>
+                                    {% else %}
+                                    <li class="page-item active">
+                                        <span class="page-link">{{ page_num }}</span>
+                                    </li>
+                                    {% endif %}
+                                {% else %}
+                                <li class="page-item disabled">
+                                    <span class="page-link">...</span>
+                                </li>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% if lotes.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('inventario.lotes', page=lotes.next_num, estado=request.args.get('estado', '')) }}">
+                                    Siguiente
+                                </a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-clipboard-list fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">No hay lotes de recolección.</p>
+                        <a href="{{ url_for('inventario.nuevo_lote') }}" class="btn btn-primary">
+                            <i class="fas fa-plus me-2"></i>Crear Primer Lote
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para ver detalles de lote -->
+<div class="modal fade" id="detallesLoteModal" tabindex="-1" aria-labelledby="detallesLoteModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="detallesLoteModalLabel">Detalles del Lote</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="contenidoDetallesLote">
+                <!-- El contenido se carga dinámicamente -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+{% endblock %}

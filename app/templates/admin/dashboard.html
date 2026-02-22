@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-cogs me-2"></i>Panel de Administración</h2>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card text-white bg-primary">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5>Total Usuarios</h5>
+                        <h2>{{ total_users }}</h2>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-users fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card text-white bg-success">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5>Usuarios Activos</h5>
+                        <h2>{{ active_users }}</h2>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-user-check fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card text-white bg-warning">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5>Usuarios Inactivos</h5>
+                        <h2>{{ total_users - active_users }}</h2>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-user-times fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card text-white bg-info">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5>Logins Recientes</h5>
+                        <h2>{{ recent_logins|length }}</h2>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-sign-in-alt fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-history me-2"></i>Logins Recientes</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Usuario</th>
+                                <th>IP</th>
+                                <th>Fecha</th>
+                                <th>Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for login in recent_logins %}
+                            <tr>
+                                <td>{{ login.username_attempted }}</td>
+                                <td>{{ login.ip_address }}</td>
+                                <td>{{ login.timestamp.strftime('%d/%m/%Y %H:%M') }}</td>
+                                <td>
+                                    {% if login.successful %}
+                                        <span class="badge bg-success">Exitoso</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">Fallido</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                {% if not recent_logins %}
+                    <p class="text-muted text-center">No hay logins recientes registrados.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-tools me-2"></i>Acciones Rápidas</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('admin.users') }}" class="btn btn-primary">
+                        <i class="fas fa-users me-2"></i>Gestionar Usuarios
+                    </a>
+                    <a href="{{ url_for('admin.security') }}" class="btn btn-warning">
+                        <i class="fas fa-shield-alt me-2"></i>Ver Seguridad
+                    </a>
+                    <button class="btn btn-info" onclick="exportUsers()">
+                        <i class="fas fa-download me-2"></i>Exportar Datos
+                    </button>
+                    <button class="btn btn-secondary" onclick="systemMaintenance()">
+                        <i class="fas fa-wrench me-2"></i>Mantenimiento
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5><i class="fas fa-info-circle me-2"></i>Estado del Sistema</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-2">
+                    <small class="text-muted">Base de Datos</small>
+                    <div class="progress">
+                        <div class="progress-bar bg-success" style="width: 95%"></div>
+                    </div>
+                    <small class="text-success">Conectada</small>
+                </div>
+                
+                <div class="mb-2">
+                    <small class="text-muted">Servidor de Email</small>
+                    <div class="progress">
+                        <div class="progress-bar bg-success" style="width: 100%"></div>
+                    </div>
+                    <small class="text-success">Operativo</small>
+                </div>
+                
+                <div class="mb-2">
+                    <small class="text-muted">Espacio en Disco</small>
+                    <div class="progress">
+                        <div class="progress-bar bg-warning" style="width: 75%"></div>
+                    </div>
+                    <small class="text-warning">75% Usado</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function exportUsers() {
+    alert('Funcionalidad de exportación - Implementar según necesidades');
+}
+
+function systemMaintenance() {
+    if (confirm('¿Estás seguro de que deseas realizar mantenimiento del sistema?')) {
+        alert('Mantenimiento del sistema - Implementar según necesidades');
+    }
+}
+</script>
+{% endblock %}

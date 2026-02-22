@@ -1,0 +1,1085 @@
+/* Estilos personalizados para el Sistema de Gestión */
+
+/* ============================================================================
+   VARIABLES CSS - SISTEMA DE COLORES CONFIGURABLE
+   Tema: Negro, Rojo y Blanco (predomina negro y rojo)
+   ============================================================================ */
+:root {
+    /* Colores Principales */
+    --primary-color: #dc143c;           /* Rojo primario (Crimson) */
+    --primary-dark: #b01030;            /* Rojo oscuro */
+    --primary-light: #ff4757;           /* Rojo claro */
+    
+    --secondary-color: #1a1a1a;         /* Negro secundario */
+    --secondary-dark: #000000;          /* Negro puro */
+    --secondary-light: #2d2d2d;         /* Gris oscuro */
+    
+    --accent-color: #ffffff;            /* Blanco */
+    --accent-dark: #f5f5f5;             /* Gris claro */
+    --accent-light: #ffffff;            /* Blanco puro */
+    
+    /* Colores de Estado (adaptados al tema) */
+    --success-color: #28a745;           /* Verde (mantener para éxito) */
+    --success-dark: #1e7e34;
+    --success-light: #34ce57;
+    
+    --warning-color: #ffc107;           /* Amarillo (mantener para advertencias) */
+    --warning-dark: #d39e00;
+    --warning-light: #ffd54f;
+    
+    --danger-color: #dc143c;            /* Rojo (mismo que primary) */
+    --danger-dark: #b01030;
+    --danger-light: #ff4757;
+    
+    --info-color: #17a2b8;              /* Cyan (mantener para info) */
+    --info-dark: #117a8b;
+    --info-light: #3abcc9;
+    
+    /* Colores de Fondo */
+    --bg-primary: #1a1a1a;              /* Fondo principal (negro) */
+    --bg-secondary: #2d2d2d;            /* Fondo secundario (gris oscuro) */
+    --bg-tertiary: #000000;             /* Fondo terciario (negro puro) */
+    --bg-light: #f5f5f5;                /* Fondo claro (gris muy claro) */
+    --bg-white: #ffffff;                /* Fondo blanco */
+    
+    /* Colores de Texto */
+    --text-primary: #ffffff;            /* Texto principal (blanco) */
+    --text-secondary: #cccccc;          /* Texto secundario (gris claro) */
+    --text-muted: #999999;              /* Texto atenuado (gris) */
+    --text-dark: #1a1a1a;               /* Texto oscuro (negro) */
+    --text-danger: #dc143c;             /* Texto peligro (rojo) */
+    
+    /* Colores de Borde */
+    --border-color: #3d3d3d;            /* Borde principal */
+    --border-light: #4d4d4d;            /* Borde claro */
+    --border-dark: #2d2d2d;             /* Borde oscuro */
+    
+    /* Sombras */
+    --shadow-sm: 0 0.125rem 0.25rem rgba(220, 20, 60, 0.075);
+    --shadow-md: 0 0.5rem 1rem rgba(220, 20, 60, 0.15);
+    --shadow-lg: 0 1rem 3rem rgba(220, 20, 60, 0.175);
+    
+    /* Gradientes */
+    --gradient-primary: linear-gradient(135deg, #dc143c 0%, #b01030 100%);
+    --gradient-dark: linear-gradient(135deg, #1a1a1a 0%, #000000 100%);
+    --gradient-red-black: linear-gradient(135deg, #dc143c 0%, #1a1a1a 100%);
+    
+    /* Transiciones */
+    --transition-fast: 0.15s ease-in-out;
+    --transition-normal: 0.3s ease-in-out;
+    --transition-slow: 0.5s ease-in-out;
+}
+
+/* ============================================================================
+   ESTILOS GENERALES
+   ============================================================================ */
+body {
+    background-color: var(--bg-primary);
+    color: var(--text-primary) !important;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    transition: background-color var(--transition-normal);
+}
+
+/* FORZAR TODO EL TEXTO A BLANCO - Regla global más fuerte */
+* {
+    color: var(--text-primary) !important;
+}
+
+/* Excepciones para elementos que necesitan colores específicos */
+.btn, .badge, .alert, .nav-link, .dropdown-item {
+    color: inherit !important;
+}
+
+/* Botones con fondo oscuro/rojo - texto blanco */
+.btn-primary, .btn-danger, .btn-success, .btn-info, .btn-dark, .btn-secondary,
+.bg-primary, .bg-danger, .bg-success, .bg-info {
+    color: var(--text-primary) !important;
+}
+
+/* Botones con fondo claro - texto negro */
+.btn-warning, .btn-light, .bg-light, .bg-white, .bg-warning {
+    color: var(--text-dark) !important;
+}
+
+/* Botones outline y links */
+.btn-outline-primary, .btn-outline-secondary, .btn-outline-danger,
+.btn-outline-success, .btn-outline-info, .btn-outline-warning, .btn-outline-dark {
+    color: inherit !important;
+}
+
+.btn-link {
+    color: var(--primary-color) !important;
+}
+
+/* Footer con fondo claro */
+footer.bg-light, footer.bg-white {
+    color: var(--text-dark) !important;
+}
+
+footer.bg-light *, footer.bg-white * {
+    color: var(--text-dark) !important;
+}
+
+/* Inputs y form controls */
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="date"],
+input[type="time"],
+textarea,
+select {
+    color: var(--text-primary) !important;
+}
+
+/* Tipografía - Asegurar que todo el texto sea blanco */
+h1, h2, h3, h4, h5, h6 {
+    color: var(--text-primary) !important;
+}
+
+p, span, div, label, li, td, th {
+    color: var(--text-primary);
+}
+
+strong, b {
+    color: var(--text-primary) !important;
+}
+
+small, .small {
+    color: var(--text-secondary) !important;
+}
+
+.text-white {
+    color: var(--text-primary) !important;
+}
+
+/* Asegurar que los textos oscuros de Bootstrap se sobrescriban */
+.text-dark,
+.text-body,
+.text-black {
+    color: var(--text-primary) !important;
+}
+
+/* Headers y títulos en cards */
+.card-title,
+.card-subtitle,
+.card-text {
+    color: var(--text-primary) !important;
+}
+
+/* Navegación */
+.navbar {
+    background: var(--gradient-dark) !important;
+    border-bottom: 2px solid var(--primary-color);
+    box-shadow: var(--shadow-md);
+}
+
+.navbar-brand {
+    font-weight: bold;
+    color: var(--text-primary) !important;
+    text-shadow: 0 0 10px rgba(220, 20, 60, 0.5);
+}
+
+.navbar-brand:hover {
+    color: var(--primary-color) !important;
+}
+
+.nav-link {
+    color: var(--text-secondary) !important;
+    transition: all var(--transition-fast);
+    border-radius: 5px;
+    padding: 0.5rem 1rem !important;
+}
+
+.nav-link:hover,
+.nav-link:focus {
+    color: var(--text-primary) !important;
+    background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.nav-link.active {
+    color: var(--text-primary) !important;
+    background-color: rgba(0, 0, 0, 0.5) !important;
+    border-bottom: 2px solid var(--primary-color);
+}
+
+/* Dropdown Toggle */
+.dropdown-toggle:hover,
+.dropdown-toggle:focus {
+    color: var(--text-primary) !important;
+    background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.dropdown-toggle.show {
+    color: var(--text-primary) !important;
+    background-color: rgba(0, 0, 0, 0.5) !important;
+}
+
+/* Dropdown Menus */
+.dropdown-menu {
+    background-color: var(--bg-secondary);
+    border: 2px solid var(--border-color);
+}
+
+.dropdown-item {
+    color: var(--text-primary) !important;
+    transition: all var(--transition-fast);
+}
+
+.dropdown-item:hover,
+.dropdown-item:focus {
+    background-color: var(--bg-tertiary);
+    color: var(--primary-color) !important;
+}
+
+.dropdown-divider {
+    border-color: var(--border-color);
+}
+
+/* ============================================================================
+   TARJETAS (CARDS)
+   ============================================================================ */
+.card {
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    background-color: var(--bg-secondary);
+    box-shadow: var(--shadow-sm);
+    transition: all var(--transition-fast);
+    color: var(--text-primary);
+}
+
+.card:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+}
+
+.card-header {
+    border-radius: 10px 10px 0 0 !important;
+    border-bottom: 2px solid var(--primary-color);
+    font-weight: 600;
+    background: var(--gradient-dark);
+    color: var(--text-primary);
+}
+
+.card-body {
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+.card-footer {
+    background-color: var(--bg-tertiary);
+    border-top: 1px solid var(--border-color);
+    color: var(--text-secondary);
+}
+
+/* Tarjetas de colores */
+.card.text-white {
+    border: none;
+}
+
+.bg-primary {
+    background: var(--gradient-primary) !important;
+}
+
+.bg-dark {
+    background: var(--gradient-dark) !important;
+}
+
+.bg-danger {
+    background-color: var(--danger-color) !important;
+}
+
+.bg-success {
+    background-color: var(--success-color) !important;
+}
+
+.bg-warning {
+    background-color: var(--warning-color) !important;
+    color: var(--text-dark) !important;
+}
+
+.bg-info {
+    background-color: var(--info-color) !important;
+}
+
+/* ============================================================================
+   BOTONES
+   ============================================================================ */
+.btn {
+    border-radius: 8px;
+    font-weight: 500;
+    transition: all var(--transition-fast);
+    border: 2px solid transparent;
+}
+
+.btn:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.btn-lg {
+    padding: 0.75rem 1.5rem;
+    font-size: 1.1rem;
+}
+
+/* Botón Primario (Rojo) */
+.btn-primary {
+    background: var(--gradient-primary);
+    border-color: var(--primary-color);
+    color: var(--text-primary);
+}
+
+.btn-primary:hover,
+.btn-primary:focus {
+    background: var(--primary-dark);
+    border-color: var(--primary-dark);
+    color: var(--text-primary);
+    box-shadow: 0 0 15px rgba(220, 20, 60, 0.5);
+}
+
+/* Botón Secundario (Negro) */
+.btn-secondary {
+    background-color: var(--secondary-color);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+.btn-secondary:hover,
+.btn-secondary:focus {
+    background-color: var(--secondary-light);
+    border-color: var(--primary-color);
+    color: var(--text-primary);
+}
+
+/* Botón Outline Primario */
+.btn-outline-primary {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+    background-color: transparent;
+}
+
+.btn-outline-primary:hover,
+.btn-outline-primary:focus {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    color: var(--text-primary);
+}
+
+/* Botón Danger */
+.btn-danger {
+    background-color: var(--danger-color);
+    border-color: var(--danger-color);
+}
+
+.btn-danger:hover,
+.btn-danger:focus {
+    background-color: var(--danger-dark);
+    border-color: var(--danger-dark);
+}
+
+/* Otros botones de estado */
+.btn-success {
+    background-color: var(--success-color);
+    border-color: var(--success-color);
+}
+
+.btn-success:hover {
+    background-color: var(--success-dark);
+    border-color: var(--success-dark);
+}
+
+.btn-warning {
+    background-color: var(--warning-color);
+    border-color: var(--warning-color);
+    color: var(--text-dark);
+}
+
+.btn-warning:hover {
+    background-color: var(--warning-dark);
+    border-color: var(--warning-dark);
+    color: var(--text-dark);
+}
+
+.btn-info {
+    background-color: var(--info-color);
+    border-color: var(--info-color);
+}
+
+.btn-info:hover {
+    background-color: var(--info-dark);
+    border-color: var(--info-dark);
+}
+
+/* ============================================================================
+   FORMULARIOS
+   ============================================================================ */
+.form-control,
+.form-select {
+    border-radius: 8px;
+    border: 2px solid var(--border-color);
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    transition: all var(--transition-fast);
+}
+
+.form-control:focus,
+.form-select:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(220, 20, 60, 0.25);
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+.form-control::placeholder {
+    color: var(--text-muted);
+}
+
+.form-label {
+    font-weight: 500;
+    color: var(--text-primary) !important;
+    margin-bottom: 0.5rem;
+}
+
+.form-label.required::after {
+    content: " *";
+    color: var(--danger-color);
+}
+
+/* Texto descriptivo en formularios */
+.form-text,
+.text-muted,
+small.text-muted,
+.help-text {
+    color: var(--text-secondary) !important;
+}
+
+/* Legends y fieldsets */
+legend {
+    color: var(--text-primary) !important;
+}
+
+fieldset {
+    color: var(--text-primary) !important;
+}
+
+/* Disabled inputs */
+.form-control:disabled,
+.form-select:disabled {
+    background-color: var(--bg-tertiary);
+    color: var(--text-muted);
+    opacity: 0.7;
+}
+
+/* Input groups */
+.input-group-text {
+    background-color: var(--bg-tertiary);
+    border: 2px solid var(--border-color);
+    color: var(--text-primary);
+}
+
+/* ============================================================================
+   ALERTAS
+   ============================================================================ */
+.alert {
+    border: none;
+    border-radius: 10px;
+    border-left: 4px solid;
+}
+
+.alert-success {
+    background-color: rgba(40, 167, 69, 0.15);
+    border-left-color: var(--success-color);
+    color: var(--success-light);
+}
+
+.alert-danger {
+    background-color: rgba(220, 20, 60, 0.15);
+    border-left-color: var(--danger-color);
+    color: var(--danger-light);
+}
+
+.alert-warning {
+    background-color: rgba(255, 193, 7, 0.15);
+    border-left-color: var(--warning-color);
+    color: var(--warning-light);
+}
+
+.alert-info {
+    background-color: rgba(23, 162, 184, 0.15);
+    border-left-color: var(--info-color);
+    color: var(--info-light);
+}
+
+/* ============================================================================
+   JUMBOTRON / HERO SECTION
+   ============================================================================ */
+.jumbotron {
+    background: var(--gradient-red-black);
+    border-radius: 15px;
+    border: 2px solid var(--primary-color);
+    box-shadow: var(--shadow-lg);
+    padding: 3rem 2rem;
+}
+
+.jumbotron h1,
+.jumbotron .display-4 {
+    color: var(--text-primary);
+    text-shadow: 0 0 20px rgba(220, 20, 60, 0.7);
+}
+
+.jumbotron p,
+.jumbotron .lead {
+    color: var(--text-secondary);
+}
+
+/* ============================================================================
+   BADGES
+   ============================================================================ */
+.badge {
+    font-size: 0.75em;
+    font-weight: 500;
+    border-radius: 6px;
+    padding: 0.35em 0.65em;
+}
+
+.bg-primary.badge,
+.badge.bg-primary {
+    background-color: var(--primary-color) !important;
+}
+
+.bg-danger.badge,
+.badge.bg-danger {
+    background-color: var(--danger-color) !important;
+}
+
+.bg-success.badge,
+.badge.bg-success {
+    background-color: var(--success-color) !important;
+}
+
+.bg-warning.badge,
+.badge.bg-warning {
+    background-color: var(--warning-color) !important;
+    color: var(--text-dark) !important;
+}
+
+.bg-dark.badge,
+.badge.bg-dark {
+    background-color: var(--secondary-color) !important;
+}
+
+/* ============================================================================
+   TABLAS
+   ============================================================================ */
+.table {
+    border-radius: 10px;
+    overflow: hidden;
+    color: var(--text-primary);
+}
+
+.table th {
+    border-top: none;
+    font-weight: 600;
+    background-color: var(--bg-tertiary);
+    color: var(--text-primary);
+    border-bottom: 2px solid var(--primary-color);
+}
+
+.table td {
+    background-color: var(--bg-secondary);
+    border-color: var(--border-color);
+    color: var(--text-primary) !important;
+}
+
+.table tbody tr {
+    transition: background-color var(--transition-fast);
+    color: var(--text-primary);
+}
+
+.table tbody tr:hover {
+    background-color: var(--bg-secondary-light);
+    color: var(--text-primary) !important;
+}
+
+.table-striped tbody tr:nth-of-type(odd) {
+    background-color: rgba(220, 20, 60, 0.05);
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(220, 20, 60, 0.1);
+}
+
+.table-dark {
+    background-color: var(--bg-tertiary);
+    color: var(--text-primary);
+}
+
+.table-dark th,
+.table-dark td {
+    border-color: var(--border-color);
+}
+
+/* Colores de fila de tabla */
+.table-warning {
+    background-color: rgba(255, 193, 7, 0.1) !important;
+    color: var(--text-primary) !important;
+}
+
+.table-success {
+    background-color: rgba(40, 167, 69, 0.1) !important;
+    color: var(--text-primary) !important;
+}
+
+.table-danger {
+    background-color: rgba(220, 20, 60, 0.1) !important;
+    color: var(--text-primary) !important;
+}
+
+/* Asegurar que todo el texto en tablas sea visible */
+.table td,
+.table th,
+.table tbody,
+.table thead,
+.table tfoot {
+    color: var(--text-primary) !important;
+}
+
+.table a {
+    color: var(--primary-color) !important;
+}
+
+.table a:hover {
+    color: var(--primary-light) !important;
+}
+
+/* ============================================================================
+   MODALES
+   ============================================================================ */
+.modal-content {
+    background-color: var(--bg-secondary);
+    border: 2px solid var(--primary-color);
+    color: var(--text-primary);
+}
+
+.modal-header {
+    background: var(--gradient-dark);
+    border-bottom: 2px solid var(--primary-color);
+    color: var(--text-primary);
+}
+
+.modal-header .btn-close {
+    filter: invert(1);
+}
+
+.modal-body {
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+.modal-footer {
+    background-color: var(--bg-tertiary);
+    border-top: 1px solid var(--border-color);
+}
+
+/* ============================================================================
+   BARRAS DE PROGRESO
+   ============================================================================ */
+.progress {
+    background-color: var(--bg-tertiary);
+    border-radius: 10px;
+    border: 1px solid var(--border-color);
+}
+
+.progress-bar {
+    background: var(--gradient-primary);
+    box-shadow: 0 0 10px rgba(220, 20, 60, 0.5);
+}
+
+.progress-bar.bg-success {
+    background-color: var(--success-color) !important;
+}
+
+.progress-bar.bg-warning {
+    background-color: var(--warning-color) !important;
+}
+
+.progress-bar.bg-danger {
+    background-color: var(--danger-color) !important;
+}
+
+/* ============================================================================
+   FOOTER
+   ============================================================================ */
+footer {
+    margin-top: auto;
+    background-color: var(--bg-tertiary);
+    border-top: 2px solid var(--primary-color);
+    color: var(--text-secondary);
+    padding: 1rem 0;
+}
+
+/* ============================================================================
+   ESTILOS RESPONSIVE
+   ============================================================================ */
+@media (max-width: 768px) {
+    .jumbotron {
+        padding: 2rem 1rem;
+    }
+    
+    .jumbotron h1 {
+        font-size: 2rem;
+    }
+    
+    .card-body {
+        padding: 1rem;
+    }
+}
+
+/* ============================================================================
+   ANIMACIONES
+   ============================================================================ */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.fade-in {
+    animation: fadeIn var(--transition-slow) ease-out;
+}
+
+@keyframes pulse-red {
+    0%, 100% {
+        box-shadow: 0 0 0 0 rgba(220, 20, 60, 0.7);
+    }
+    50% {
+        box-shadow: 0 0 20px 10px rgba(220, 20, 60, 0);
+    }
+}
+
+.pulse-red {
+    animation: pulse-red 2s infinite;
+}
+
+/* ============================================================================
+   ICONOS
+   ============================================================================ */
+.fa,
+.fas,
+.far {
+    margin-right: 0.25rem;
+}
+
+.text-primary {
+    color: var(--primary-color) !important;
+}
+
+.text-danger {
+    color: var(--danger-color) !important;
+}
+
+.text-success {
+    color: var(--success-color) !important;
+}
+
+.text-warning {
+    color: var(--warning-color) !important;
+}
+
+.text-muted {
+    color: var(--text-muted) !important;
+}
+
+/* ============================================================================
+   LOADING / SPINNERS
+   ============================================================================ */
+.spinner-border-sm {
+    width: 1rem;
+    height: 1rem;
+}
+
+.spinner-border {
+    border-color: var(--primary-color);
+    border-right-color: transparent;
+}
+
+/* ============================================================================
+   PANEL DE ADMINISTRACIÓN
+   ============================================================================ */
+.admin-card {
+    background: var(--gradient-red-black);
+    color: white;
+    border: 2px solid var(--primary-color);
+}
+
+.stats-card {
+    transition: transform var(--transition-fast);
+    border: 1px solid var(--border-color);
+}
+
+.stats-card:hover {
+    transform: scale(1.02);
+    border-color: var(--primary-color);
+    box-shadow: 0 0 20px rgba(220, 20, 60, 0.3);
+}
+
+/* ============================================================================
+   ESTADOS DE USUARIO
+   ============================================================================ */
+.user-status-active {
+    color: var(--success-color);
+}
+
+.user-status-inactive {
+    color: var(--danger-color);
+}
+
+.user-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--gradient-primary);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    border: 2px solid var(--primary-color);
+}
+
+/* ============================================================================
+   UTILIDADES ADICIONALES
+   ============================================================================ */
+.text-gradient {
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.border-start-primary {
+    border-left: 4px solid var(--primary-color) !important;
+}
+
+.border-start-success {
+    border-left: 4px solid var(--success-color) !important;
+}
+
+.border-start-warning {
+    border-left: 4px solid var(--warning-color) !important;
+}
+
+.border-start-danger {
+    border-left: 4px solid var(--danger-color) !important;
+}
+
+/* Links */
+a {
+    color: var(--primary-color);
+    text-decoration: none;
+    transition: color var(--transition-fast);
+}
+
+a:hover {
+    color: var(--primary-light);
+    text-decoration: underline;
+}
+
+/* Scrollbar personalizado */
+::-webkit-scrollbar {
+    width: 10px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--bg-tertiary);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--primary-color);
+    border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--primary-dark);
+}
+
+/* Selección de texto */
+::selection {
+    background-color: var(--primary-color);
+    color: var(--text-primary);
+}
+
+::-moz-selection {
+    background-color: var(--primary-color);
+    color: var(--text-primary);
+}
+
+/* ============================================================================
+   CLASES DE UTILIDAD PERSONALIZADAS
+   ============================================================================ */
+.bg-gradient-primary {
+    background: var(--gradient-primary) !important;
+}
+
+.bg-gradient-dark {
+    background: var(--gradient-dark) !important;
+}
+
+.bg-gradient-red-black {
+    background: var(--gradient-red-black) !important;
+}
+
+.shadow-red {
+    box-shadow: 0 0 20px rgba(220, 20, 60, 0.5) !important;
+}
+
+.border-red {
+    border-color: var(--primary-color) !important;
+}
+
+.border-2 {
+    border-width: 2px !important;
+}
+
+/* Opacidad de fondo */
+.bg-opacity-10 {
+    background-color: rgba(220, 20, 60, 0.1) !important;
+}
+
+.bg-opacity-25 {
+    background-color: rgba(220, 20, 60, 0.25) !important;
+}
+
+/* ============================================================================
+   GRÁFICOS Y CANVAS (Chart.js, etc.)
+   ============================================================================ */
+/* Contenedor de gráficos */
+canvas {
+    background-color: transparent !important;
+}
+
+/* Estilos globales para Chart.js */
+.chartjs-render-monitor {
+    color: var(--text-primary) !important;
+}
+
+/* Texto de leyendas */
+.chartjs-legend,
+.chartjs-legend-item,
+.chartjs-legend-text {
+    color: var(--text-primary) !important;
+}
+
+/* Tooltip */
+.chartjs-tooltip {
+    background-color: var(--bg-secondary) !important;
+    border: 2px solid var(--primary-color) !important;
+    color: var(--text-primary) !important;
+}
+
+/* Labels y títulos de gráficos */
+.chart-title,
+.chart-label,
+.chart-text {
+    color: var(--text-primary) !important;
+    fill: var(--text-primary) !important;
+}
+
+/* SVG text elements */
+svg text {
+    fill: var(--text-primary) !important;
+}
+
+svg .domain,
+svg .tick line {
+    stroke: var(--border-color) !important;
+}
+
+svg .tick text {
+    fill: var(--text-primary) !important;
+}
+
+/* Estilos para ApexCharts */
+.apexcharts-text,
+.apexcharts-title-text,
+.apexcharts-subtitle-text,
+.apexcharts-xaxis-label,
+.apexcharts-yaxis-label,
+.apexcharts-legend-text {
+    fill: var(--text-primary) !important;
+}
+
+.apexcharts-gridline {
+    stroke: var(--border-color) !important;
+}
+
+.apexcharts-tooltip {
+    background: var(--bg-secondary) !important;
+    border: 2px solid var(--primary-color) !important;
+    color: var(--text-primary) !important;
+}
+
+/* Estilos para cualquier librería de gráficos */
+.graph-label,
+.axis-label,
+.legend-label,
+.chart-legend {
+    color: var(--text-primary) !important;
+}
+
+/* Contenedores de gráficos */
+.chart-container,
+.graph-container {
+    background-color: transparent;
+}
+
+.chart-container *,
+.graph-container * {
+    color: var(--text-primary) !important;
+}
+
+/* ============================================================================
+   FORZAR COLORES BLANCOS (Sobrescribir Bootstrap)
+   ============================================================================ */
+/* Sobrescribir todas las clases de texto de Bootstrap */
+.container, .container-fluid,
+.row, .col, [class*="col-"],
+.card-body, .card-header, .card-footer,
+.form-group, .mb-3, .mt-3,
+.alert, .modal-body {
+    color: var(--text-primary) !important;
+}
+
+/* Asegurar que todos los inputs y labels sean visibles */
+input:not([type="submit"]):not([type="button"]),
+textarea, select, option {
+    color: var(--text-primary) !important;
+}
+
+label, .form-label, .col-form-label {
+    color: var(--text-primary) !important;
+}
+
+/* Textos en listas y grupos */
+ul, ol, dl, dt, dd {
+    color: var(--text-primary) !important;
+}
+
+/* ============================================================================
+   MODO CLARO (OPCIONAL - COMENTAR SI NO SE USA)
+   ============================================================================ */
+/*
+body.light-mode {
+    --bg-primary: #ffffff;
+    --bg-secondary: #f5f5f5;
+    --bg-tertiary: #e0e0e0;
+    --text-primary: #1a1a1a;
+    --text-secondary: #4d4d4d;
+    --text-muted: #6d6d6d;
+    --border-color: #cccccc;
+}
+*/

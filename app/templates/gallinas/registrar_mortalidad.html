@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block title %}Registrar Mortalidad - {{ lote.numero_lote }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0"><i class="fas fa-plus"></i> Registrar Mortalidad - Lote {{ lote.numero_lote }}</h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info mb-4">
+                        <strong>Lote:</strong> {{ lote.numero_lote }} | 
+                        <strong>Cantidad Actual:</strong> {{ lote.cantidad_actual }} gallinas
+                    </div>
+
+                    <form method="POST" action="{{ url_for('gallinas.registrar_mortalidad', lote_id=lote.id) }}" enctype="multipart/form-data">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="cantidad" class="form-label">Cantidad de Muertes *</label>
+                                <input type="number" class="form-control" id="cantidad" name="cantidad" 
+                                       min="1" max="{{ lote.cantidad_actual }}" required>
+                                <small class="form-text text-muted">Máximo: {{ lote.cantidad_actual }} gallinas</small>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="fecha_registro" class="form-label">Fecha *</label>
+                                <input type="date" class="form-control" id="fecha_registro" name="fecha_registro" 
+                                       value="{{ today }}" required>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="causa" class="form-label">Causa de Mortalidad *</label>
+                            <select class="form-select" id="causa" name="causa" required>
+                                <option value="">Seleccionar causa...</option>
+                                <option value="Enfermedad respiratoria">Enfermedad respiratoria</option>
+                                <option value="Enfermedad digestiva">Enfermedad digestiva</option>
+                                <option value="Newcastle">Newcastle</option>
+                                <option value="Bronquitis">Bronquitis</option>
+                                <option value="Estrés por calor">Estrés por calor</option>
+                                <option value="Picoteo/Canibalismo">Picoteo/Canibalismo</option>
+                                <option value="Prolapso">Prolapso</option>
+                                <option value="Desnutrición">Desnutrición</option>
+                                <option value="Depredador">Depredador</option>
+                                <option value="Causa natural">Causa natural</option>
+                                <option value="Desconocida">Desconocida</option>
+                                <option value="Otra">Otra</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="imagen" class="form-label">
+                                <i class="fas fa-camera"></i> Evidencia Fotografica (Opcional)
+                            </label>
+                            <input type="file" class="form-control" id="imagen" name="imagen"
+                                   accept="image/jpeg,image/jpg,image/png,image/gif,image/webp" capture="environment">
+                            <small class="form-text text-muted">
+                                <i class="fas fa-info-circle"></i> La imagen se optimizara automaticamente<br>
+                                <i class="fas fa-check-circle text-success"></i> Formatos: JPG, PNG, GIF, WebP | Tamano maximo: 5 MB<br>
+                                <i class="fas fa-mobile-alt"></i> En movil: toque para usar la camara directamente
+                            </small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="observaciones" class="form-label">Observaciones</label>
+                            <textarea class="form-control" id="observaciones" name="observaciones" 
+                                      rows="4" placeholder="Detalles adicionales sobre la mortalidad..."></textarea>
+                        </div>
+
+                        <hr>
+
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('gallinas.detalle_lote', lote_id=lote.id) }}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-warning">
+                                <i class="fas fa-save"></i> Registrar Mortalidad
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

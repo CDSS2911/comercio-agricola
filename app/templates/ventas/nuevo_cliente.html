@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-user-plus me-2"></i>Nuevo Cliente</h2>
+    <a href="{{ url_for('ventas.lista_clientes') }}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left me-1"></i>Volver a Clientes
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-lg-8 mx-auto">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-id-card me-2"></i>Información del Cliente</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('ventas.crear_cliente') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    
+                    <!-- Datos personales -->
+                    <h6 class="text-primary mb-3">
+                        <i class="fas fa-user me-2"></i>Datos Personales
+                    </h6>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="nombre" class="form-label">Nombre *</label>
+                            <input type="text" class="form-control" id="nombre" name="nombre" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="apellido" class="form-label">Apellido *</label>
+                            <input type="text" class="form-control" id="apellido" name="apellido" required>
+                        </div>
+                    </div>
+                    
+                    <!-- Identificación -->
+                    <div class="mb-3">
+                        <label class="form-label">Identificación</label>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <select class="form-select" name="tipo_identificacion">
+                                    <option value="">Tipo</option>
+                                    <option value="CC">Cédula de Ciudadanía</option>
+                                    <option value="CE">Cédula de Extranjería</option>
+                                    <option value="TI">Tarjeta de Identidad</option>
+                                    <option value="PP">Pasaporte</option>
+                                    <option value="NIT">NIT</option>
+                                </select>
+                            </div>
+                            <div class="col-md-8">
+                                <input type="text" class="form-control" name="numero_identificacion" 
+                                       placeholder="Número de identificación">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Contacto -->
+                    <h6 class="text-primary mb-3 mt-4">
+                        <i class="fas fa-phone me-2"></i>Información de Contacto
+                    </h6>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="telefono" class="form-label">Teléfono</label>
+                            <input type="tel" class="form-control" id="telefono" name="telefono" 
+                                   placeholder="300 123 4567">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="email" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="email" name="email" 
+                                   placeholder="cliente@email.com">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="direccion" class="form-label">Dirección</label>
+                        <input type="text" class="form-control" id="direccion" name="direccion" 
+                               placeholder="Dirección completa">
+                    </div>
+                    
+                    <!-- Información de crédito -->
+                    <h6 class="text-primary mb-3 mt-4">
+                        <i class="fas fa-credit-card me-2"></i>Límite de Crédito
+                    </h6>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="limite_credito" class="form-label">Límite de Crédito</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" class="form-control" id="limite_credito" 
+                                       name="limite_credito" min="0" step="0.01" value="0" required>
+                            </div>
+                            <small class="form-text text-muted">
+                                Monto máximo que el cliente puede deber
+                            </small>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Nota:</strong> El límite de crédito de $0 indica que el cliente solo puede comprar de contado.
+                    </div>
+                    
+                    <hr class="my-4">
+                    
+                    <!-- Botones -->
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('ventas.lista_clientes') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-times me-1"></i>Cancelar
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-1"></i>Guardar Cliente
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

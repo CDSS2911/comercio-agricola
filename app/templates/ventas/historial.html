@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-history me-2"></i>Historial de Ventas</h2>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('ventas.export_excel_ventas', tabla='historial', fecha_inicio=request.args.get('fecha_inicio', ''), fecha_fin=request.args.get('fecha_fin', ''), tipo_pago=request.args.get('tipo_pago', ''), estado=request.args.get('estado', ''), cliente_id=request.args.get('cliente_id', '')) }}" class="btn btn-outline-success">
+            <i class="fas fa-file-excel me-1"></i>Excel
+        </a>
+        <a href="{{ url_for('ventas.nueva_venta') }}" class="btn btn-primary">
+            <i class="fas fa-plus me-1"></i>Nueva Venta
+        </a>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-2">
+            <div class="col-md-2">
+                <input type="date" class="form-control" name="fecha_inicio" value="{{ request.args.get('fecha_inicio', '') }}">
+            </div>
+            <div class="col-md-2">
+                <input type="date" class="form-control" name="fecha_fin" value="{{ request.args.get('fecha_fin', '') }}">
+            </div>
+            <div class="col-md-2">
+                <select class="form-select" name="tipo_pago">
+                    <option value="">Tipo Pago</option>
+                    <option value="contado" {% if request.args.get('tipo_pago') == 'contado' %}selected{% endif %}>Contado</option>
+                    <option value="credito" {% if request.args.get('tipo_pago') == 'credito' %}selected{% endif %}>Credito</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select class="form-select" name="estado">
+                    <option value="">Estado</option>
+                    <option value="pendiente" {% if request.args.get('estado') == 'pendiente' %}selected{% endif %}>Pendiente</option>
+                    <option value="parcial" {% if request.args.get('estado') == 'parcial' %}selected{% endif %}>Parcial</option>
+                    <option value="completada" {% if request.args.get('estado') == 'completada' %}selected{% endif %}>Completada</option>
+                    <option value="cancelada" {% if request.args.get('estado') == 'cancelada' %}selected{% endif %}>Cancelada</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <select class="form-select" name="cliente_id">
+                    <option value="">Cliente</option>
+                    {% for cliente in clientes %}
+                    <option value="{{ cliente.id }}" {% if request.args.get('cliente_id') == (cliente.id|string) %}selected{% endif %}>
+                        {{ cliente.get_nombre_completo() }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-1">
+                <button class="btn btn-outline-primary w-100" type="submit">
+                    <i class="fas fa-search"></i>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        {% if ventas.items %}
+        <div class="table-responsive">
+            <table class="table table-sm table-hover">
+                <thead>
+                    <tr>
+                        <th>Numero</th>
+                        <th>Fecha</th>
+                        <th>Cliente</th>
+                        <th>Tipo</th>
+                        <th>Total</th>
+                        <th>Pagado</th>
+                        <th>Debe</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for venta in ventas.items %}
+                    {% set pagado = pagos_por_venta.get(venta.id, 0) %}
+                    {% set saldo = (venta.total|float) - pagado %}
+                    <tr>
+                        <td><strong>{{ venta.numero_venta }}</strong></td>
+                        <td>{{ venta.fecha_venta.strftime('%d/%m/%Y %H:%M') }}</td>
+                        <td>{{ venta.cliente.get_nombre_completo() if venta.cliente else 'N/A' }}</td>
+                        <td>
+                            <span class="badge {% if venta.tipo_pago == 'credito' %}bg-warning{% else %}bg-success{% endif %}">
+                                {{ venta.tipo_pago|capitalize }}
+                            </span>
+                        </td>
+                        <td>${{ "%.2f"|format(venta.total) }}</td>
+                        <td class="text-success">${{ "%.2f"|format(pagado) }}</td>
+                        <td class="text-danger">${{ "%.2f"|format(0 if saldo < 0 else saldo) }}</td>
+                        <td>
+                            {% if venta.estado == 'completada' %}
+                            <span class="badge bg-success">Completada</span>
+                            {% elif venta.estado == 'parcial' %}
+                            <span class="badge bg-warning">Parcial</span>
+                            {% elif venta.estado == 'pendiente' %}
+                            <span class="badge bg-danger">Pendiente</span>
+                            {% else %}
+                            <span class="badge bg-secondary">Cancelada</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{{ url_for('ventas.detalle_venta', venta_id=venta.id) }}" class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                            {% if venta.estado != 'cancelada' and venta.get_monto_pagado() == 0 %}
+                            <form method="POST" action="{{ url_for('ventas.anular_venta', venta_id=venta.id) }}" class="d-inline" onsubmit="return confirm('¿Anular esta venta?');">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                <input type="hidden" name="next" value="{{ request.full_path if request.query_string else request.path }}"/>
+                                <button type="submit" class="btn btn-sm btn-outline-danger">
+                                    <i class="fas fa-ban"></i>
+                                </button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted mb-0">No hay ventas con esos filtros.</p>
+        {% endif %}
+
+        <div class="row g-2 mt-3">
+            <div class="col-md-4">
+                <div class="p-2 rounded border border-secondary bg-dark text-white">
+                    <small class="text-secondary d-block">Total Ventas (filtros)</small>
+                    <strong>${{ "%.2f"|format(totales_historial.total_ventas) }}</strong>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="p-2 rounded border border-secondary bg-dark text-white">
+                    <small class="text-secondary d-block">Total Pagado (filtros)</small>
+                    <strong class="text-success">${{ "%.2f"|format(totales_historial.total_pagado) }}</strong>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="p-2 rounded border border-secondary bg-dark text-white">
+                    <small class="text-secondary d-block">Total Debe (filtros)</small>
+                    <strong class="text-danger">${{ "%.2f"|format(totales_historial.total_debe) }}</strong>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
