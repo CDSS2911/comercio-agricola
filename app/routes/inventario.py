@@ -20,7 +20,7 @@ inventario_bp = Blueprint('inventario', __name__, url_prefix='/inventario')
 @login_required
 def dashboard():
     """Dashboard principal del inventario"""
-    # EstadÃƒÂ­sticas generales
+    # Estadísticas generales
     stats = {
         'lotes_hoy': LoteRecoleccion.query.filter_by(fecha_recoleccion=date.today()).count(),
         'lotes_activos': LoteRecoleccion.query.filter_by(estado='EN_PROCESO').count(),
@@ -34,7 +34,7 @@ def dashboard():
         ).scalar() or 0
     }
     
-    # Inventario por categorÃƒÂ­as
+    # Inventario por categorías
     inventario = db.session.query(
         CategoriaHuevo.nombre,
         CategoriaHuevo.peso_min,
@@ -55,13 +55,13 @@ def dashboard():
                          lotes_recientes=lotes_recientes)
 
 # =============================================================================
-# GESTIÃƒâ€œN DE CATEGORÃƒÂAS
+# GESTIÓN DE CATEGORÍAS
 # =============================================================================
 
 @inventario_bp.route('/categorias')
 @login_required
 def categorias():
-    """Vista de gestiÃƒÂ³n de categorÃƒÂ­as de huevos"""
+    """Vista de gestión de categorías de huevos"""
     categorias = CategoriaHuevo.query.order_by(CategoriaHuevo.peso_min.asc()).all()
     return render_template('inventario/categorias.html', 
                          categorias=categorias,
@@ -70,9 +70,9 @@ def categorias():
 @inventario_bp.route('/categorias/crear', methods=['POST'])
 @login_required
 def crear_categoria():
-    """Crear nueva categorÃƒÂ­a de huevos"""
+    """Crear nueva categoría de huevos"""
     if not current_user.is_admin:
-        flash('No tienes permisos para crear categorÃƒÂ­as', 'error')
+        flash('No tienes permisos para crear categorías', 'error')
         return redirect(url_for('inventario.categorias'))
     
     try:
@@ -86,17 +86,17 @@ def crear_categoria():
         db.session.add(categoria)
         db.session.commit()
         
-        flash(f'CategorÃƒÂ­a {categoria.nombre} creada correctamente', 'success')
+        flash(f'Categoría {categoria.nombre} creada correctamente', 'success')
     except Exception as e:
         db.session.rollback()
-        flash(f'Error al crear la categorÃƒÂ­a: {str(e)}', 'error')
+        flash(f'Error al crear la categoría: {str(e)}', 'error')
     
     return redirect(url_for('inventario.categorias'))
 
 @inventario_bp.route('/categorias/<int:categoria_id>/editar', methods=['GET'])
 @login_required
 def obtener_categoria(categoria_id):
-    """Obtener datos de una categorÃƒÂ­a para ediciÃƒÂ³n"""
+    """Obtener datos de una categoría para edición"""
     if not current_user.is_admin:
         return jsonify({'success': False, 'message': 'Sin permisos'})
     
@@ -119,7 +119,7 @@ def obtener_categoria(categoria_id):
 @inventario_bp.route('/categorias/<int:categoria_id>/actualizar', methods=['POST'])
 @login_required
 def actualizar_categoria(categoria_id):
-    """Actualizar una categorÃƒÂ­a existente"""
+    """Actualizar una categoría existente"""
     if not current_user.is_admin:
         return jsonify({'success': False, 'message': 'Sin permisos'})
     
@@ -133,7 +133,7 @@ def actualizar_categoria(categoria_id):
         
         db.session.commit()
         
-        flash(f'CategorÃƒÂ­a {categoria.nombre} actualizada correctamente', 'success')
+        flash(f'Categoría {categoria.nombre} actualizada correctamente', 'success')
         return jsonify({'success': True})
         
     except Exception as e:
@@ -143,7 +143,7 @@ def actualizar_categoria(categoria_id):
 @inventario_bp.route('/categorias/<int:categoria_id>/cambiar-estado', methods=['POST'])
 @login_required
 def cambiar_estado_categoria(categoria_id):
-    """Cambiar el estado activo/inactivo de una categorÃƒÂ­a"""
+    """Cambiar el estado activo/inactivo de una categoría"""
     if not current_user.is_admin:
         return jsonify({'success': False, 'message': 'Sin permisos'})
     
@@ -155,11 +155,11 @@ def cambiar_estado_categoria(categoria_id):
         db.session.commit()
         
         estado_texto = 'activada' if nuevo_estado else 'desactivada'
-        flash(f'CategorÃƒÂ­a {categoria.nombre} {estado_texto} correctamente', 'success')
+        flash(f'Categoría {categoria.nombre} {estado_texto} correctamente', 'success')
         
         return jsonify({
             'success': True,
-            'message': f'CategorÃƒÂ­a {estado_texto} correctamente'
+            'message': f'Categoría {estado_texto} correctamente'
         })
         
     except Exception as e:
@@ -167,7 +167,7 @@ def cambiar_estado_categoria(categoria_id):
         return jsonify({'success': False, 'message': str(e)})
 
 # =============================================================================
-# GESTIÃƒâ€œN DE LOTES DE RECOLECCIÃƒâ€œN
+# GESTIÓN DE LOTES DE RECOLECCIÓN
 # =============================================================================
 
 # =============================================================================
@@ -690,7 +690,7 @@ def exportar_movimientos_excel():
 @inventario_bp.route('/lotes')
 @login_required
 def lotes():
-    """Vista de gestiÃƒÂ³n de lotes de recolecciÃƒÂ³n"""
+    """Vista de gestión de lotes de recolección"""
     page = request.args.get('page', 1, type=int)
     estado_filter = request.args.get('estado', '')
     
@@ -723,12 +723,12 @@ def nuevo_lote():
 @inventario_bp.route('/lotes/crear', methods=['POST'])
 @login_required
 def crear_lote():
-    """Crear nuevo lote de recolecciÃƒÂ³n"""
+    """Crear nuevo lote de recolección"""
     try:
         from app.models import LoteGallinas
         from datetime import date
         
-        # Obtener lote de gallinas si se seleccionÃƒÂ³
+        # Obtener lote de gallinas si se seleccionó
         lote_gallinas_id = request.form.get('lote_gallinas_id')
         lote_gallinas = None
         semana_produccion = None
@@ -740,16 +740,16 @@ def crear_lote():
                     request.form.get('fecha_recoleccion'), '%Y-%m-%d'
                 ).date() if request.form.get('fecha_recoleccion') else date.today()
                 
-                # Si es la primera recolecciÃƒÂ³n, marcar inicio de producciÃƒÂ³n
+                # Si es la primera recolección, marcar inicio de producción
                 if not lote_gallinas.fecha_inicio_produccion:
                     lote_gallinas.fecha_inicio_produccion = fecha_recoleccion
                     semana_produccion = 1
-                    flash(f'Ã‚Â¡Primera recolecciÃƒÂ³n del lote {lote_gallinas.numero_lote}! Inicio de producciÃƒÂ³n registrado.', 'info')
+                    flash(f'¡Primera recolección del lote {lote_gallinas.numero_lote}! Inicio de producción registrado.', 'info')
                 else:
-                    # Calcular semana basada en la fecha de recolecciÃƒÂ³n vs fecha inicio producciÃƒÂ³n
-                    # Sumamos 1 al resultado para que el primer dÃƒÂ­a sea dÃƒÂ­a 1 (no dÃƒÂ­a 0)
+                    # Calcular semana basada en la fecha de recolección vs fecha inicio producción
+                    # Sumamos 1 al resultado para que el primer día sea día 1 (no día 0)
                     dias_desde_inicio = (fecha_recoleccion - lote_gallinas.fecha_inicio_produccion).days + 1
-                    semana_produccion = ((dias_desde_inicio - 1) // 7) + 1  # DÃƒÂ­as 1-7=Semana1, 8-14=Semana2, etc.
+                    semana_produccion = ((dias_desde_inicio - 1) // 7) + 1  # Días 1-7=Semana1, 8-14=Semana2, etc.
         
         lote = LoteRecoleccion(
             fecha_recoleccion=datetime.strptime(
@@ -764,7 +764,7 @@ def crear_lote():
         lote.generar_numero_lote()
         
         db.session.add(lote)
-        # Si hay lote de gallinas modificado, tambiÃƒÂ©n se guardarÃƒÂ¡
+        # Si hay lote de gallinas modificado, también se guardará
         if lote_gallinas:
             db.session.add(lote_gallinas)
         
@@ -797,7 +797,7 @@ def pesar_huevos(lote_id):
         flash('No tienes permisos para acceder a este lote', 'error')
         return redirect(url_for('inventario.lotes'))
     
-    # EstadÃƒÂ­sticas del lote
+    # Estadísticas del lote
     huevos = Huevo.query.filter_by(lote_id=lote_id).all()
     stats_lote = {
         'total_huevos': len([h for h in huevos if not h.roto]),
@@ -806,7 +806,7 @@ def pesar_huevos(lote_id):
         'peso_promedio': sum([h.peso for h in huevos if not h.roto]) / max(len([h for h in huevos if not h.roto]), 1)
     }
     
-    # DistribuciÃƒÂ³n por categorÃƒÂ­as
+    # Distribución por categorías
     distribucion = db.session.query(
         CategoriaHuevo.nombre,
         db.func.count(Huevo.id).label('cantidad'),
@@ -816,7 +816,7 @@ def pesar_huevos(lote_id):
         Huevo.roto == False
     ).group_by(CategoriaHuevo.id, CategoriaHuevo.nombre).all()
     
-    # CategorÃƒÂ­as disponibles para clasificaciÃƒÂ³n
+    # Categorías disponibles para clasificación
     categorias = CategoriaHuevo.query.filter_by(activo=True).order_by(CategoriaHuevo.peso_min.asc()).all()
     pesas_activas = Pesa.query.filter_by(activo=True).order_by(Pesa.id.asc()).all()
     
@@ -826,7 +826,7 @@ def pesar_huevos(lote_id):
                          distribucion=distribucion,
                          categorias=categorias,
                          pesas_activas=pesas_activas,
-                         huevos=huevos[-50:],  # Solo los ÃƒÂºltimos 50 para mostrar
+                         huevos=huevos[-50:],  # Solo los últimos 50 para mostrar
                          csrf_token=generate_csrf)
 
 @inventario_bp.route('/lotes/<int:lote_id>/asignar-pesa', methods=['POST'])
@@ -1219,11 +1219,11 @@ def marcar_huevo_roto(huevo_id):
             return jsonify({'success': False, 'message': 'Sin permisos'})
         
         huevo.roto = True
-        huevo.categoria_id = None  # Quitar categorÃƒÂ­a si estÃƒÂ¡ roto
+        huevo.categoria_id = None  # Quitar categoría si está roto
         
         db.session.commit()
         
-        # Actualizar estadÃƒÂ­sticas del lote
+        # Actualizar estadísticas del lote
         huevo.lote.actualizar_estadisticas()
         db.session.commit()
         
@@ -1239,7 +1239,7 @@ def ver_detalle_lote(lote_id):
     """Ver detalles completos de un lote"""
     lote = LoteRecoleccion.query.get_or_404(lote_id)
     
-    # EstadÃƒÂ­sticas del lote
+    # Estadísticas del lote
     huevos = Huevo.query.filter_by(lote_id=lote_id).all()
     stats_lote = {
         'total_huevos': len([h for h in huevos if not h.roto]),
@@ -1248,7 +1248,7 @@ def ver_detalle_lote(lote_id):
         'peso_promedio': sum([h.peso for h in huevos if not h.roto]) / max(len([h for h in huevos if not h.roto]), 1)
     }
     
-    # DistribuciÃƒÂ³n por categorÃƒÂ­as
+    # Distribución por categorías
     distribucion = db.session.query(
         CategoriaHuevo.nombre,
         CategoriaHuevo.peso_min,
@@ -1269,7 +1269,7 @@ def ver_detalle_lote(lote_id):
 @inventario_bp.route('/lotes/<int:lote_id>/completar', methods=['POST'])
 @login_required
 def completar_lote(lote_id):
-    """Completar un lote de recolecciÃƒÂ³n"""
+    """Completar un lote de recolección"""
     try:
         lote = LoteRecoleccion.query.get_or_404(lote_id)
         
@@ -1311,7 +1311,7 @@ def reportes():
         CategoriaHuevo.activo == True
     ).group_by(CategoriaHuevo.id, CategoriaHuevo.nombre).all()
     
-    # Reporte de producciÃƒÂ³n semanal
+    # Reporte de producción semanal
     from datetime import timedelta
     fecha_inicio = date.today() - timedelta(days=7)
     

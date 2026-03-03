@@ -12,7 +12,7 @@ bp = Blueprint('auth', __name__)
 
 @bp.route('/login', methods=['GET', 'POST'])
 def login():
-    """PÃ¡gina de inicio de sesiÃ³n"""
+    """Página de inicio de sesión"""
     if current_user.is_authenticated:
         return redirect(url_for('main.dashboard'))
     
@@ -35,13 +35,13 @@ def login():
         if user is None or not user.check_password(form.password.data):
             db.session.add(login_attempt)
             db.session.commit()
-            flash('Usuario o contraseÃ±a incorrectos', 'error')
+            flash('Usuario o contraseña incorrectos', 'error')
             return redirect(url_for('auth.login'))
         
         if not user.is_active:
             db.session.add(login_attempt)
             db.session.commit()
-            flash('Tu cuenta estÃ¡ desactivada. Contacta al administrador.', 'error')
+            flash('Tu cuenta está desactivada. Contacta al administrador.', 'error')
             return redirect(url_for('auth.login'))
         
         # Login exitoso
@@ -60,21 +60,21 @@ def login():
             next_page = url_for(resolve_home_endpoint())
         return redirect(next_page)
     
-    return render_template('auth/login.html', title='Iniciar SesiÃ³n', form=form)
+    return render_template('auth/login.html', title='Iniciar Sesión', form=form)
 
 
 @bp.route('/logout')
 @login_required
 def logout():
-    """Cerrar sesiÃ³n"""
+    """Cerrar sesión"""
     logout_user()
-    flash('Has cerrado sesiÃ³n correctamente.', 'success')
+    flash('Has cerrado sesión correctamente.', 'success')
     return redirect(url_for('main.index'))
 
 
 @bp.route('/register', methods=['GET', 'POST'])
 def register():
-    """PÃ¡gina de registro de usuarios"""
+    """Página de registro de usuarios"""
     if current_user.is_authenticated:
         return redirect(url_for('main.dashboard'))
     
@@ -90,10 +90,10 @@ def register():
         db.session.add(user)
         db.session.commit()
         
-        # Enviar email de confirmaciÃ³n
+        # Enviar email de confirmación
         send_confirmation_email(user)
         
-        flash('Â¡Registro exitoso! Revisa tu email para confirmar tu cuenta.', 'success')
+        flash('¡Registro exitoso! Revisa tu email para confirmar tu cuenta.', 'success')
         return redirect(url_for('auth.login'))
     
     return render_template('auth/register.html', title='Registro', form=form)
@@ -101,7 +101,7 @@ def register():
 
 @bp.route('/reset_password_request', methods=['GET', 'POST'])
 def reset_password_request():
-    """Solicitar recuperaciÃ³n de contraseÃ±a"""
+    """Solicitar recuperación de contraseña"""
     if current_user.is_authenticated:
         return redirect(url_for('main.dashboard'))
     
@@ -110,28 +110,28 @@ def reset_password_request():
         user = User.query.filter_by(email=form.email.data).first()
         if user:
             send_password_reset_email(user)
-        flash('Revisa tu email para las instrucciones de recuperaciÃ³n de contraseÃ±a', 'info')
+        flash('Revisa tu email para las instrucciones de recuperación de contraseña', 'info')
         return redirect(url_for('auth.login'))
     
-    return render_template('auth/reset_password_request.html', title='Recuperar ContraseÃ±a', form=form)
+    return render_template('auth/reset_password_request.html', title='Recuperar Contraseña', form=form)
 
 
 @bp.route('/reset_password/<token>', methods=['GET', 'POST'])
 def reset_password(token):
-    """Restablecer contraseÃ±a usando token"""
+    """Restablecer contraseña usando token"""
     if current_user.is_authenticated:
         return redirect(url_for('main.dashboard'))
     
     user = User.verify_reset_token(token)
     if not user:
-        flash('Token invÃ¡lido o expirado', 'error')
+        flash('Token inválido o expirado', 'error')
         return redirect(url_for('auth.reset_password_request'))
     
     form = ResetPasswordForm()
     if form.validate_on_submit():
         user.set_password(form.password.data)
         db.session.commit()
-        flash('Tu contraseÃ±a ha sido actualizada.', 'success')
+        flash('Tu contraseña ha sido actualizada.', 'success')
         return redirect(url_for('auth.login'))
     
     return render_template('auth/reset_password.html', form=form)
@@ -146,8 +146,8 @@ def confirm_email(token):
     user = User.query.filter_by(id=current_user.id if current_user.is_authenticated else None).first()
     if user and user.confirm_email(token):
         db.session.commit()
-        flash('Â¡Tu email ha sido confirmado!', 'success')
+        flash('¡Tu email ha sido confirmado!', 'success')
     else:
-        flash('El enlace de confirmaciÃ³n es invÃ¡lido o ha expirado.', 'error')
+        flash('El enlace de confirmación es inválido o ha expirado.', 'error')
     
     return redirect(url_for('main.index'))

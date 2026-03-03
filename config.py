@@ -12,9 +12,9 @@ class Config:
     # Configuración de la base de datos MySQL/MariaDB
     MYSQL_HOST = os.environ.get('MYSQL_HOST') or 'localhost'
     MYSQL_PORT = os.environ.get('MYSQL_PORT') or 3306
-    MYSQL_USER = os.environ.get('MYSQL_USER') or 'root'
-    MYSQL_PASSWORD = os.environ.get('MYSQL_PASSWORD') or ''
-    MYSQL_DB = os.environ.get('MYSQL_DB') or 'gestion_usuarios'
+    MYSQL_USER = os.environ.get('MYSQL_USER') or 'hrentubo_root'
+    MYSQL_PASSWORD = os.environ.get('MYSQL_PASSWORD') or 'Huevos.2026'
+    MYSQL_DB = os.environ.get('MYSQL_DB') or 'hrentubo_rambo'
     
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
         f'mysql+pymysql://{MYSQL_USER}:{MYSQL_PASSWORD}@{MYSQL_HOST}:{MYSQL_PORT}/{MYSQL_DB}'
