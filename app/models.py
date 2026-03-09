@@ -78,12 +78,12 @@ class User(UserMixin, db.Model):
     last_name = db.Column(db.String(100), nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
     
-    # InformaciÃƒÂ³n adicional del usuario
+    # Información adicional del usuario
     telefono = db.Column(db.String(20), nullable=True)
     fecha_nacimiento = db.Column(db.Date, nullable=True)
     direccion = db.Column(db.Text, nullable=True)
     
-    # IdentificaciÃƒÂ³n
+    # Identificación
     tipo_identificacion = db.Column(db.String(20), nullable=True)  # CC, CE, TI, PP, etc.
     numero_identificacion = db.Column(db.String(20), nullable=True, unique=True, index=True)
     
@@ -102,11 +102,11 @@ class User(UserMixin, db.Model):
         return f'<User {self.username}>'
     
     def set_password(self, password):
-        """Establece la contraseÃƒÂ±a del usuario (hasheada)"""
+        """Establece la contraseña del usuario (hasheada)"""
         self.password_hash = generate_password_hash(password)
     
     def check_password(self, password):
-        """Verifica si la contraseÃƒÂ±a es correcta"""
+        """Verifica si la contraseña es correcta"""
         return check_password_hash(self.password_hash, password)
     
     def get_full_name(self):
@@ -139,13 +139,13 @@ class User(UserMixin, db.Model):
         self.is_active = value
     
     def generate_reset_token(self, expires_sec=1800):
-        """Genera un token para recuperaciÃƒÂ³n de contraseÃƒÂ±a"""
+        """Genera un token para recuperación de contraseña"""
         s = Serializer(current_app.config['SECRET_KEY'])
         return s.dumps({'user_id': self.id})
     
     @staticmethod
     def verify_reset_token(token, expires_sec=1800):
-        """Verifica el token de recuperaciÃƒÂ³n de contraseÃƒÂ±a"""
+        """Verifica el token de recuperación de contraseña"""
         s = Serializer(current_app.config['SECRET_KEY'])
         try:
             user_id = s.loads(token, max_age=expires_sec)['user_id']
@@ -154,9 +154,21 @@ class User(UserMixin, db.Model):
         return User.query.get(user_id)
     
     def generate_confirmation_token(self, expires_sec=3600):
-        """Genera un token para confirmaciÃƒÂ³n de email"""
+        """Genera un token para confirmación de email"""
         s = Serializer(current_app.config['SECRET_KEY'])
         return s.dumps({'confirm': self.id})
+
+    @staticmethod
+    def verify_confirmation_token(token, expires_sec=3600):
+        """Verifica token de confirmación y retorna el usuario."""
+        s = Serializer(current_app.config['SECRET_KEY'])
+        try:
+            user_id = s.loads(token, max_age=expires_sec).get('confirm')
+        except Exception:
+            return None
+        if not user_id:
+            return None
+        return User.query.get(user_id)
     
     def confirm_email(self, token, expires_sec=3600):
         """Confirma el email usando el token"""
@@ -278,18 +290,18 @@ class LoginAttempt(db.Model):
 # =============================================================================
 
 class CategoriaHuevo(db.Model):
-    """CategorÃƒÂ­as de huevos basadas en peso"""
+    """Categorías de huevos basadas en peso"""
     __tablename__ = 'categoria_huevo'
     
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(50), nullable=False)  # XL, L, M, S, etc.
-    peso_min = db.Column(db.Float, nullable=False)     # Peso mÃƒÂ­nimo en gramos
-    peso_max = db.Column(db.Float, nullable=False)     # Peso mÃƒÂ¡ximo en gramos
+    peso_min = db.Column(db.Float, nullable=False)     # Peso mínimo en gramos
+    peso_max = db.Column(db.Float, nullable=False)     # Peso máximo en gramos
     precio_venta = db.Column(db.Numeric(10, 2), default=0)  # Precio por unidad
     activo = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
-    # RelaciÃƒÂ³n con huevos
+    # Relación con huevos
     huevos = db.relationship('Huevo', backref='categoria', lazy=True)
     
     def __repr__(self):
@@ -297,7 +309,7 @@ class CategoriaHuevo(db.Model):
     
     @staticmethod
     def clasificar_por_peso(peso):
-        """Clasifica un huevo segÃƒÂºn su peso"""
+        """Clasifica un huevo según su peso"""
         categoria = CategoriaHuevo.query.filter(
             CategoriaHuevo.peso_min <= peso,
             CategoriaHuevo.peso_max >= peso,
@@ -327,7 +339,7 @@ class Pesa(db.Model):
         return f'<Pesa {self.id} - {self.nombre}>'
 
 class LoteRecoleccion(db.Model):
-    """Lote de recolecciÃƒÂ³n de huevos"""
+    """Lote de recolección de huevos"""
     __tablename__ = 'lote_recoleccion'
     
     id = db.Column(db.Integer, primary_key=True)
@@ -336,35 +348,36 @@ class LoteRecoleccion(db.Model):
     hora_inicio = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     hora_fin = db.Column(db.DateTime, nullable=True)
     
-    # Usuario que realiza la recolecciÃƒÂ³n
+    # Usuario que realiza la recolección
     usuario_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     usuario = db.relationship('User', backref='lotes_recoleccion')
     
-    # RelaciÃƒÂ³n con lote de gallinas
+    # Relación con lote de gallinas
     lote_gallinas_id = db.Column(db.Integer, db.ForeignKey('lote_gallinas.id'), nullable=True)
     lote_gallinas = db.relationship('LoteGallinas', backref='recolecciones')
-    semana_produccion = db.Column(db.Integer, nullable=True)  # Semana de producciÃƒÂ³n del lote
+    semana_produccion = db.Column(db.Integer, nullable=True)  # Semana de producción del lote
+
     pesa_id = db.Column(db.Integer, db.ForeignKey('pesa.id'), nullable=True)
     
     # Estado del lote
     estado = db.Column(db.String(20), default='EN_PROCESO')  # EN_PROCESO, COMPLETADO, CANCELADO
     observaciones = db.Column(db.Text, nullable=True)
     
-    # EstadÃƒÂ­sticas del lote
+    # Estadísticas del lote
     total_huevos = db.Column(db.Integer, default=0)
     total_peso = db.Column(db.Float, default=0)
     huevos_rotos = db.Column(db.Integer, default=0)
     
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
-    # RelaciÃƒÂ³n con huevos
+    # Relación con huevos
     huevos = db.relationship('Huevo', backref='lote', lazy=True, cascade='all, delete-orphan')
     
     def __repr__(self):
         return f'<LoteRecoleccion {self.numero_lote} - {self.fecha_recoleccion}>'
     
     def generar_numero_lote(self):
-        """Genera un nÃƒÂºmero de lote automÃƒÂ¡tico"""
+        """Genera un número de lote automático"""
         fecha = datetime.now().strftime('%Y%m%d')
         ultimo_lote = LoteRecoleccion.query.filter(
             LoteRecoleccion.numero_lote.like(f'{fecha}%')
@@ -413,7 +426,7 @@ class Huevo(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     peso = db.Column(db.Float, nullable=False)  # Peso en gramos
-    roto = db.Column(db.Boolean, default=False, nullable=False)  # Si estÃƒÂ¡ roto
+    roto = db.Column(db.Boolean, default=False, nullable=False)  # Si está roto
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     
     # Relaciones
@@ -428,7 +441,7 @@ class Huevo(db.Model):
         return f'<Huevo {self.peso}g - {"Roto" if self.roto else "OK"}>'
     
     def clasificar(self):
-        """Clasifica el huevo segÃƒÂºn su peso"""
+        """Clasifica el huevo según su peso"""
         if not self.roto:
             categoria = CategoriaHuevo.clasificar_por_peso(self.peso)
             if categoria:
@@ -458,7 +471,7 @@ class Huevo(db.Model):
 
 
 class InventarioHuevos(db.Model):
-    """Inventario consolidado de huevos por categorÃƒÂ­a"""
+    """Inventario consolidado de huevos por categoría"""
     __tablename__ = 'inventario_huevos'
     
     id = db.Column(db.Integer, primary_key=True)
@@ -480,7 +493,7 @@ class InventarioHuevos(db.Model):
         # Limpiar inventario actual
         InventarioHuevos.query.delete()
         
-        # Obtener estadÃƒÂ­sticas por categorÃƒÂ­a
+        # Obtener estadísticas por categoría
         from sqlalchemy import func
         
         stats = db.session.query(
@@ -504,7 +517,7 @@ class InventarioHuevos(db.Model):
 
 
 # ===========================
-# MODELOS DE GESTIÃƒâ€œN DE GALLINAS (LEVANTE)
+# MODELOS DE GESTIÓN DE GALLINAS (LEVANTE)
 # ===========================
 
 class Gasto(db.Model):
@@ -533,7 +546,7 @@ class LoteGallinas(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     numero_lote = db.Column(db.String(50), unique=True, nullable=False, index=True)
     
-    # InformaciÃƒÂ³n del lote
+    # Información del lote
     cantidad_inicial = db.Column(db.Integer, nullable=False)  # Cantidad de gallinas al inicio
     cantidad_actual = db.Column(db.Integer, nullable=False)  # Cantidad actual de gallinas vivas
     raza = db.Column(db.String(100), nullable=True)  # Raza de las gallinas
@@ -541,15 +554,15 @@ class LoteGallinas(db.Model):
     # Fechas importantes
     fecha_ingreso = db.Column(db.Date, nullable=False)  # Fecha de entrada del lote
     fecha_inicio_produccion = db.Column(db.Date, nullable=True)  # Fecha de primera postura
-    fecha_fin_produccion = db.Column(db.Date, nullable=True)  # Fecha estimada/real fin producciÃƒÂ³n
+    fecha_fin_produccion = db.Column(db.Date, nullable=True)  # Fecha estimada/real fin producción
     
-    # Control de edad y producciÃƒÂ³n
+    # Control de edad y producción
     edad_semanas_ingreso = db.Column(db.Integer, default=0)  # Edad en semanas al ingresar
-    semanas_produccion_maximas = db.Column(db.Integer, default=80)  # Semanas mÃƒÂ¡ximas de producciÃƒÂ³n
+    semanas_produccion_maximas = db.Column(db.Integer, default=80)  # Semanas máximas de producción
     
     # Estado del lote
     estado = db.Column(db.String(20), default='ACTIVO')  # ACTIVO, FINALIZADO, VENDIDO
-    ubicacion = db.Column(db.String(100), nullable=True)  # UbicaciÃƒÂ³n fÃƒÂ­sica del lote (gallinero)
+    ubicacion = db.Column(db.String(100), nullable=True)  # Ubicación física del lote (gallinero)
     
     # Costos
     costo_unitario = db.Column(db.Numeric(10, 2), nullable=True)  # Costo por gallina
@@ -582,11 +595,11 @@ class LoteGallinas(db.Model):
         return (dias // 7) + self.edad_semanas_ingreso
     
     def get_semanas_produccion(self):
-        """Calcula las semanas de producciÃƒÂ³n del lote basado en la ÃƒÂºltima recolecciÃƒÂ³n"""
+        """Calcula las semanas de producción del lote basado en la última recolección"""
         if not self.fecha_inicio_produccion:
             return 0
         
-        # Buscar la ÃƒÂºltima recolecciÃƒÂ³n de este lote
+        # Buscar la última recolección de este lote
         from app.models import LoteRecoleccion
         ultima_recoleccion = LoteRecoleccion.query.filter_by(
             lote_gallinas_id=self.id
@@ -599,18 +612,18 @@ class LoteGallinas(db.Model):
         
         # Si no hay recolecciones, calcular por fecha (fallback)
         dias = (datetime.now().date() - self.fecha_inicio_produccion).days
-        # Si es el mismo dÃƒÂ­a o dentro de la primera semana, retornar 1
+        # Si es el mismo día o dentro de la primera semana, retornar 1
         if dias < 7:
             return 1 if dias >= 0 else 0
         return (dias // 7) + 1
     
     def get_semanas_restantes(self):
-        """Calcula las semanas restantes basado en la edad actual del lote (mÃƒÂ¡ximo 80 semanas de vida)"""
+        """Calcula las semanas restantes basado en la edad actual del lote (máximo 80 semanas de vida)"""
         edad_actual = self.get_edad_actual_semanas()
         return max(0, self.semanas_produccion_maximas - edad_actual)
     
     def get_porcentaje_vida_util(self):
-        """Calcula el porcentaje de vida ÃƒÂºtil consumido basado en edad actual (mÃƒÂ¡ximo 80 semanas)"""
+        """Calcula el porcentaje de vida útil consumido basado en edad actual (máximo 80 semanas)"""
         if self.semanas_produccion_maximas == 0:
             return 100
         edad_actual = self.get_edad_actual_semanas()
@@ -653,7 +666,7 @@ class LoteGallinas(db.Model):
         self.cantidad_actual = self.cantidad_inicial - mortalidad - vendidas
         
     def get_produccion_semanal(self, semana=None):
-        """Obtiene la producciÃƒÂ³n de huevos de una semana especÃƒÂ­fica"""
+        """Obtiene la producción de huevos de una semana específica"""
         if semana is None:
             semana = self.get_semanas_produccion()
         
@@ -690,9 +703,9 @@ class RegistroMortalidad(db.Model):
     
     # Gallinas separadas por enfermedad
     gallinas_separadas = db.Column(db.Integer, default=0, nullable=True)
-    ubicacion_separacion = db.Column(db.String(100), nullable=True)  # DÃƒÂ³nde se separaron
+    ubicacion_separacion = db.Column(db.String(100), nullable=True)  # Dónde se separaron
     
-    # Evidencia fotogrÃƒÂ¡fica
+    # Evidencia fotográfica
     imagen = db.Column(db.String(255), nullable=True)  # Ruta de la imagen
     
     # Usuario que registra
@@ -715,7 +728,7 @@ class VentaGallinas(db.Model):
     fecha_venta = db.Column(db.Date, nullable=False, default=datetime.utcnow)
     cantidad = db.Column(db.Integer, nullable=False)
     
-    # InformaciÃƒÂ³n de venta
+    # Información de venta
     precio_unitario = db.Column(db.Numeric(10, 2), nullable=True)
     precio_total = db.Column(db.Numeric(12, 2), nullable=True)
     
@@ -735,7 +748,7 @@ class VentaGallinas(db.Model):
 
 
 class RegistroSanitario(db.Model):
-    """Registro de tratamientos sanitarios y vacunaciÃƒÂ³n de gallinas"""
+    """Registro de tratamientos sanitarios y vacunación de gallinas"""
     __tablename__ = 'registro_sanitario'
     
     id = db.Column(db.Integer, primary_key=True)
@@ -748,16 +761,16 @@ class RegistroSanitario(db.Model):
     producto = db.Column(db.String(200), nullable=False)
     dosis = db.Column(db.String(100), nullable=True)
     
-    # PrÃƒÂ³xima aplicaciÃƒÂ³n
+    # Próxima aplicación
     fecha_proxima_aplicacion = db.Column(db.Date, nullable=True)
     
     observaciones = db.Column(db.Text, nullable=True)
     
-    # Gallinas separadas por enfermedad (para tratamientos especÃƒÂ­ficos)
+    # Gallinas separadas por enfermedad (para tratamientos específicos)
     gallinas_separadas = db.Column(db.Integer, default=0, nullable=True)
     ubicacion_separacion = db.Column(db.String(100), nullable=True)
     
-    # Evidencia fotogrÃƒÂ¡fica
+    # Evidencia fotográfica
     imagen = db.Column(db.String(255), nullable=True)
     
     # Usuario que registra
@@ -771,13 +784,13 @@ class RegistroSanitario(db.Model):
 
 
 class SeparacionGallinas(db.Model):
-    """Registro independiente de separaciÃƒÂ³n de gallinas por enfermedad o cuarentena"""
+    """Registro independiente de separación de gallinas por enfermedad o cuarentena"""
     __tablename__ = 'separacion_gallinas'
     
     id = db.Column(db.Integer, primary_key=True)
     lote_gallinas_id = db.Column(db.Integer, db.ForeignKey('lote_gallinas.id'), nullable=False)
     
-    # Fecha y hora de separaciÃƒÂ³n
+    # Fecha y hora de separación
     fecha_separacion = db.Column(db.Date, nullable=False, default=datetime.utcnow)
     hora_separacion = db.Column(db.Time, nullable=False, default=datetime.utcnow().time)
     
@@ -787,21 +800,21 @@ class SeparacionGallinas(db.Model):
     # Peso promedio de las gallinas separadas
     peso_promedio = db.Column(db.Numeric(5, 2), nullable=True)  # En kilogramos
     
-    # Motivo y ubicaciÃƒÂ³n
+    # Motivo y ubicación
     motivo = db.Column(db.String(200), nullable=False)  # Enfermedad, cuarentena, tratamiento, etc.
-    ubicacion = db.Column(db.String(100), nullable=False)  # DÃƒÂ³nde fueron separadas
+    ubicacion = db.Column(db.String(100), nullable=False)  # Dónde fueron separadas
     
     # Estado de las gallinas separadas
     estado = db.Column(db.String(20), default='Separada', nullable=False)  # Separada, Recuperada, Muerta, Vendida
     
-    # Fecha de resoluciÃƒÂ³n (cuando regresan o mueren)
+    # Fecha de resolución (cuando regresan o mueren)
     fecha_resolucion = db.Column(db.Date, nullable=True)
     observaciones_resolucion = db.Column(db.Text, nullable=True)
     
     # Observaciones iniciales
     observaciones = db.Column(db.Text, nullable=True)
     
-    # Evidencia fotogrÃƒÂ¡fica
+    # Evidencia fotográfica
     imagen = db.Column(db.String(255), nullable=True)
     
     # Usuario que registra
@@ -825,20 +838,20 @@ class Cliente(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     
-    # InformaciÃƒÂ³n personal
+    # Información personal
     nombre = db.Column(db.String(100), nullable=False)
     apellido = db.Column(db.String(100), nullable=False)
     telefono = db.Column(db.String(20), nullable=True)
     email = db.Column(db.String(120), nullable=True)
     direccion = db.Column(db.Text, nullable=True)
     
-    # IdentificaciÃƒÂ³n
+    # Identificación
     tipo_identificacion = db.Column(db.String(20), nullable=True)  # CC, CE, TI, PP, etc.
     numero_identificacion = db.Column(db.String(20), nullable=True, unique=True, index=True)
     
     # Estado del cliente
     activo = db.Column(db.Boolean, default=True, nullable=False)
-    limite_credito = db.Column(db.Numeric(10, 2), default=0.00)  # LÃƒÂ­mite de crÃƒÂ©dito en pesos
+    limite_credito = db.Column(db.Numeric(10, 2), default=0.00)  # Límite de crédito en pesos
     
     # Fechas
     fecha_registro = db.Column(db.DateTime, default=datetime.utcnow)
@@ -865,14 +878,14 @@ class Cliente(db.Model):
         return max(0, saldo)
     
     def puede_comprar_a_credito(self, monto):
-        """Verifica si el cliente puede comprar a crÃƒÂ©dito por el monto especificado"""
+        """Verifica si el cliente puede comprar a crédito por el monto especificado"""
         if not self.activo:
             return False
         saldo_actual = self.get_saldo_pendiente()
         return (saldo_actual + float(monto)) <= float(self.limite_credito)
     
     def get_credito_disponible(self):
-        """Calcula el crÃƒÂ©dito disponible del cliente"""
+        """Calcula el crédito disponible del cliente"""
         saldo_pendiente = self.get_saldo_pendiente()
         credito_disponible = float(self.limite_credito) - saldo_pendiente
         return max(0, credito_disponible)
@@ -902,7 +915,7 @@ class Venta(db.Model):
     
     # Fechas
     fecha_venta = db.Column(db.DateTime, default=datetime.utcnow)
-    fecha_vencimiento = db.Column(db.DateTime, nullable=True)  # Para ventas a crÃƒÂ©dito
+    fecha_vencimiento = db.Column(db.DateTime, nullable=True)  # Para ventas a crédito
     
     # Observaciones
     observaciones = db.Column(db.Text, nullable=True)
@@ -959,7 +972,7 @@ class DetalleVenta(db.Model):
 
 
 class Pago(db.Model):
-    """Modelo para registrar los pagos de las ventas a crÃƒÂ©dito"""
+    """Modelo para registrar los pagos de las ventas a crédito"""
     __tablename__ = 'pago'
     
     id = db.Column(db.Integer, primary_key=True)
@@ -976,7 +989,7 @@ class Pago(db.Model):
     forma_pago = db.Column(db.String(20), nullable=False)  # 'efectivo', 'transferencia', 'cheque'
     
     # Referencias
-    referencia = db.Column(db.String(100), nullable=True)  # NÃƒÂºmero de transferencia, cheque, etc.
+    referencia = db.Column(db.String(100), nullable=True)  # Número de transferencia, cheque, etc.
     
     # Fechas
     fecha_pago = db.Column(db.DateTime, default=datetime.utcnow)
@@ -984,7 +997,7 @@ class Pago(db.Model):
     # Observaciones
     observaciones = db.Column(db.Text, nullable=True)
     
-    # RelaciÃƒÂ³n con usuario que recibe el pago
+    # Relación con usuario que recibe el pago
     receptor = db.relationship('User', backref='pagos_recibidos', foreign_keys=[recibido_por])
     
     def __repr__(self):
@@ -1000,7 +1013,7 @@ class ConfiguracionVenta(db.Model):
     valor = db.Column(db.Text, nullable=False)
     descripcion = db.Column(db.Text, nullable=True)
     
-    # Fecha de modificaciÃƒÂ³n
+    # Fecha de modificación
     fecha_modificacion = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     modificado_por = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     

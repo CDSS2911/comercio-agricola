@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -580,8 +580,63 @@ function mostrarModalCliente() {
 }
 
 function crearClienteRapido() {
-    // TODO: Implementar creación rápida de cliente
-    alert('Función en desarrollo');
+    const form = document.getElementById('formNuevoCliente');
+    if (!form) return;
+
+    const nombre = (form.nombre.value || '').trim();
+    const apellido = (form.apellido.value || '').trim();
+    if (!nombre || !apellido) {
+        alert('Nombre y apellido son obligatorios');
+        return;
+    }
+
+    const data = new FormData(form);
+    const csrfToken = document.querySelector('[name=csrf_token]')?.value;
+    const btn = document.querySelector('#modalNuevoCliente .modal-footer .btn.btn-primary');
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Guardando...';
+    }
+
+    fetch('/ventas/api/clientes/crear', {
+        method: 'POST',
+        headers: {
+            ...(csrfToken ? { 'X-CSRFToken': csrfToken } : {})
+        },
+        body: data
+    })
+    .then(async response => {
+        const payload = await response.json();
+        if (!response.ok || !payload.success) {
+            throw new Error(payload.error || 'No se pudo crear el cliente');
+        }
+        return payload;
+    })
+    .then(payload => {
+        const cliente = payload.cliente;
+        clientesBase.push({
+            id: cliente.id,
+            nombre_completo: cliente.nombre_completo,
+            limite_credito: Number(cliente.limite_credito || 0),
+            saldo_pendiente: Number(cliente.saldo_pendiente || 0),
+        });
+        seleccionarCliente(cliente);
+
+        const modalEl = document.getElementById('modalNuevoCliente');
+        const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+        modal.hide();
+        form.reset();
+        alert('Cliente creado correctamente');
+    })
+    .catch(error => {
+        alert(error.message || 'Error creando cliente');
+    })
+    .finally(() => {
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = 'Crear Cliente';
+        }
+    });
 }
 
 // Inicializar
@@ -590,3 +645,4 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 {% endblock %}
+

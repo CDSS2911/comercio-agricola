@@ -91,9 +91,12 @@ def register():
         db.session.commit()
         
         # Enviar email de confirmación
-        send_confirmation_email(user)
+        email_sent = send_confirmation_email(user)
         
-        flash('¡Registro exitoso! Revisa tu email para confirmar tu cuenta.', 'success')
+        if email_sent:
+            flash('¡Registro exitoso! Revisa tu email para confirmar tu cuenta.', 'success')
+        else:
+            flash('Registro exitoso, pero no se pudo enviar el email de confirmación. Usa "Reenviar Confirmación" desde tu perfil.', 'warning')
         return redirect(url_for('auth.login'))
     
     return render_template('auth/register.html', title='Registro', form=form)
@@ -143,11 +146,17 @@ def confirm_email(token):
     if current_user.is_authenticated and current_user.email_confirmed:
         return redirect(url_for('main.dashboard'))
     
-    user = User.query.filter_by(id=current_user.id if current_user.is_authenticated else None).first()
-    if user and user.confirm_email(token):
-        db.session.commit()
-        flash('¡Tu email ha sido confirmado!', 'success')
-    else:
+    user = User.verify_confirmation_token(token)
+    if not user:
         flash('El enlace de confirmación es inválido o ha expirado.', 'error')
+        return redirect(url_for('main.index'))
+
+    if user.email_confirmed:
+        flash('Tu email ya estaba confirmado.', 'info')
+        return redirect(url_for('main.index'))
+
+    user.email_confirmed = True
+    db.session.commit()
+    flash('¡Tu email ha sido confirmado!', 'success')
     
     return redirect(url_for('main.index'))

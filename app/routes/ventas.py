@@ -601,6 +601,59 @@ def crear_cliente():
         return redirect(url_for('ventas.nuevo_cliente'))
 
 
+@ventas_bp.route('/api/clientes/crear', methods=['POST'])
+@login_required
+def api_crear_cliente():
+    """Crear cliente via AJAX para el modal de nueva venta."""
+    try:
+        nombre = (request.form.get('nombre') or '').strip()
+        apellido = (request.form.get('apellido') or '').strip()
+        telefono = (request.form.get('telefono') or '').strip()
+        tipo_identificacion = (request.form.get('tipo_identificacion') or '').strip() or None
+        numero_identificacion = (request.form.get('numero_identificacion') or '').strip()
+        limite_credito = float(request.form.get('limite_credito') or 0)
+
+        if not nombre or not apellido:
+            return jsonify({'success': False, 'error': 'Nombre y apellido son obligatorios'}), 400
+
+        if limite_credito < 0:
+            return jsonify({'success': False, 'error': 'El límite de crédito no puede ser negativo'}), 400
+
+        if numero_identificacion:
+            cliente_existente = Cliente.query.filter_by(
+                numero_identificacion=numero_identificacion
+            ).first()
+            if cliente_existente:
+                return jsonify({'success': False, 'error': 'Ya existe un cliente con ese número de identificación'}), 400
+
+        cliente = Cliente(
+            nombre=nombre,
+            apellido=apellido,
+            telefono=telefono or None,
+            tipo_identificacion=tipo_identificacion,
+            numero_identificacion=numero_identificacion or None,
+            limite_credito=limite_credito,
+            activo=True,
+        )
+        db.session.add(cliente)
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'cliente': {
+                'id': cliente.id,
+                'nombre_completo': cliente.get_nombre_completo(),
+                'limite_credito': float(cliente.limite_credito or 0),
+                'saldo_pendiente': float(cliente.get_saldo_pendiente() or 0),
+            }
+        }), 201
+    except ValueError:
+        return jsonify({'success': False, 'error': 'Límite de crédito inválido'}), 400
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': f'Error creando cliente: {str(e)}'}), 500
+
+
 @ventas_bp.route('/clientes/<int:cliente_id>/actualizar_credito', methods=['POST'])
 @login_required
 def actualizar_credito_cliente(cliente_id):

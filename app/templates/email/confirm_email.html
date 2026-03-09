@@ -18,20 +18,20 @@
         </div>
         <div class="content">
             <h3>Hola {{ user.get_full_name() }}</h3>
-            <p>¡Gracias por registrarte en el Sistema de Gestión!</p>
-            <p>Para completar tu registro y activar tu cuenta, por favor confirma tu dirección de email haciendo clic en el siguiente botón:</p>
-            
+            <p>¡Gracias por registrarte en {{ app_name }}!</p>
+            <p>Para completar tu registro y activar tu cuenta, confirma tu dirección de email haciendo clic en el siguiente botón:</p>
+
             <a href="{{ url_for('auth.confirm_email', token=token, _external=True) }}" class="button">
                 Confirmar Email
             </a>
-            
+
             <p><strong>Este enlace expirará en 1 hora.</strong></p>
             <p>Una vez confirmado tu email, podrás acceder a todas las funcionalidades del sistema.</p>
             <p>Si no te registraste en nuestro sistema, puedes ignorar este email.</p>
         </div>
         <div class="footer">
             <p>Este es un mensaje automático, por favor no respondas a este email.</p>
-            <p>&copy; 2025 Sistema de Gestión</p>
+            <p>&copy; 2026 {{ app_name }}</p>
         </div>
     </div>
 </body>

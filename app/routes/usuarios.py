@@ -14,6 +14,7 @@ from app import db
 from app.forms import UserProfileForm
 from app.models import Permission, Role, User
 from app.permissions.rutas import PERMISSION_DEFINITIONS, SYSTEM_ROLE_PERMISSIONS
+from app.utils.email import send_confirmation_email
 
 usuarios_bp = Blueprint('usuarios', __name__, url_prefix='/usuarios')
 
@@ -229,8 +230,11 @@ def reenviar_confirmacion():
     try:
         if current_user.email_confirmed:
             return jsonify({'success': False, 'message': 'Tu email ya esta confirmado'})
-
-        return jsonify({'success': True, 'message': 'Email de confirmacion enviado correctamente'})
+        
+        sent = send_confirmation_email(current_user)
+        if sent:
+            return jsonify({'success': True, 'message': 'Email de confirmacion enviado correctamente'})
+        return jsonify({'success': False, 'message': 'No se pudo enviar el email. Verifica configuracion SMTP y credenciales.'})
     except Exception as e:
         return jsonify({'success': False, 'message': f'Error al enviar el email: {str(e)}'})
 

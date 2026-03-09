@@ -1,8 +1,8 @@
 Hola {{ user.get_full_name() }},
 
-¡Bienvenido al Sistema de Gestión!
+¡Bienvenido a {{ app_name }}!
 
-Para completar tu registro, por favor confirma tu dirección de email haciendo clic en el siguiente enlace:
+Para completar tu registro, confirma tu dirección de email haciendo clic en el siguiente enlace:
 
 {{ url_for('auth.confirm_email', token=token, _external=True) }}
 
@@ -13,4 +13,4 @@ Una vez confirmado tu email, podrás acceder a todas las funcionalidades del sis
 Si no te registraste en nuestro sistema, puedes ignorar este email.
 
 Saludos,
-El equipo del Sistema de Gestión
+El equipo de {{ app_name }}
