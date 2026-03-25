@@ -510,6 +510,61 @@ fieldset {
 }
 
 /* ============================================================================
+   PAGINACION
+   ============================================================================ */
+.pagination .page-link {
+    background-color: var(--bg-secondary) !important;
+    border: 1px solid var(--border-color) !important;
+    color: var(--text-primary) !important;
+    min-width: 2.4rem;
+    text-align: center;
+}
+
+.pagination .page-link:hover,
+.pagination .page-link:focus {
+    background-color: var(--secondary-light) !important;
+    border-color: var(--primary-color) !important;
+    color: var(--text-primary) !important;
+    box-shadow: 0 0 0 0.2rem rgba(220, 20, 60, 0.2) !important;
+}
+
+.pagination .page-item.active .page-link {
+    background-color: var(--primary-color) !important;
+    border-color: var(--primary-color) !important;
+    color: var(--text-primary) !important;
+}
+
+.pagination .page-item.disabled .page-link {
+    background-color: var(--bg-tertiary) !important;
+    border-color: var(--border-dark) !important;
+    color: var(--text-muted) !important;
+}
+
+/* ============================================================================
+   TOASTS / MENSAJES FLOTANTES
+   ============================================================================ */
+.toast {
+    background-color: var(--bg-secondary) !important;
+    border: 1px solid var(--border-color) !important;
+    color: var(--text-primary) !important;
+}
+
+.toast-header {
+    background-color: var(--secondary-light) !important;
+    border-bottom: 1px solid var(--border-color) !important;
+    color: var(--text-primary) !important;
+}
+
+.toast-body {
+    background-color: var(--bg-secondary) !important;
+    color: var(--text-primary) !important;
+}
+
+.toast .btn-close {
+    filter: invert(1) grayscale(100%);
+}
+
+/* ============================================================================
    JUMBOTRON / HERO SECTION
    ============================================================================ */
 .jumbotron {

@@ -1,10 +1,11 @@
-﻿from datetime import datetime, timedelta
+from datetime import datetime, timedelta
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 from itsdangerous import URLSafeTimedSerializer as Serializer
 from flask import current_app
 from app import db, login_manager
+from app.utils.timezone import now_colombia, today_colombia, time_colombia
 
 
 @login_manager.user_loader
@@ -35,7 +36,7 @@ class Permission(db.Model):
     module = db.Column(db.String(50), nullable=False)
     description = db.Column(db.String(255), nullable=True)
     active = db.Column(db.Boolean, default=True, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=now_colombia)
 
     def __repr__(self):
         return f'<Permission {self.code}>'
@@ -50,7 +51,7 @@ class Role(db.Model):
     description = db.Column(db.String(255), nullable=True)
     active = db.Column(db.Boolean, default=True, nullable=False)
     is_system = db.Column(db.Boolean, default=False, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=now_colombia)
 
     permissions = db.relationship(
         'Permission',
@@ -95,7 +96,7 @@ class User(UserMixin, db.Model):
     email_confirmed = db.Column(db.Boolean, default=False, nullable=False)
     
     # Fechas
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=now_colombia)
     last_login = db.Column(db.DateTime)
     
     def __repr__(self):
@@ -278,7 +279,7 @@ class LoginAttempt(db.Model):
     ip_address = db.Column(db.String(45), nullable=False)  # IPv6 compatible
     username_attempted = db.Column(db.String(80), nullable=False)
     successful = db.Column(db.Boolean, default=False, nullable=False)
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    timestamp = db.Column(db.DateTime, default=now_colombia)
     user_agent = db.Column(db.Text)
     
     def __repr__(self):
@@ -299,7 +300,7 @@ class CategoriaHuevo(db.Model):
     peso_max = db.Column(db.Float, nullable=False)     # Peso máximo en gramos
     precio_venta = db.Column(db.Numeric(10, 2), default=0)  # Precio por unidad
     activo = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=now_colombia)
     
     # Relación con huevos
     huevos = db.relationship('Huevo', backref='categoria', lazy=True)
@@ -330,8 +331,8 @@ class Pesa(db.Model):
     tolerancia = db.Column(db.Float, default=1.0, nullable=False)
     reset_threshold = db.Column(db.Float, default=1.0, nullable=False)
     activo = db.Column(db.Boolean, default=True, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=now_colombia)
+    updated_at = db.Column(db.DateTime, default=now_colombia, onupdate=now_colombia)
 
     lotes = db.relationship('LoteRecoleccion', backref='pesa', lazy=True)
 
@@ -344,8 +345,8 @@ class LoteRecoleccion(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     numero_lote = db.Column(db.String(20), unique=True, nullable=False)
-    fecha_recoleccion = db.Column(db.Date, nullable=False, default=datetime.utcnow().date)
-    hora_inicio = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    fecha_recoleccion = db.Column(db.Date, nullable=False, default=today_colombia)
+    hora_inicio = db.Column(db.DateTime, nullable=False, default=now_colombia)
     hora_fin = db.Column(db.DateTime, nullable=True)
     
     # Usuario que realiza la recolección
@@ -368,7 +369,7 @@ class LoteRecoleccion(db.Model):
     total_peso = db.Column(db.Float, default=0)
     huevos_rotos = db.Column(db.Integer, default=0)
     
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=now_colombia)
     
     # Relación con huevos
     huevos = db.relationship('Huevo', backref='lote', lazy=True, cascade='all, delete-orphan')
@@ -378,7 +379,7 @@ class LoteRecoleccion(db.Model):
     
     def generar_numero_lote(self):
         """Genera un número de lote automático"""
-        fecha = datetime.now().strftime('%Y%m%d')
+        fecha = now_colombia().strftime('%Y%m%d')
         ultimo_lote = LoteRecoleccion.query.filter(
             LoteRecoleccion.numero_lote.like(f'{fecha}%')
         ).order_by(LoteRecoleccion.id.desc()).first()
@@ -395,7 +396,7 @@ class LoteRecoleccion(db.Model):
     def completar_lote(self):
         """Marca el lote como completado"""
         self.estado = 'COMPLETADO'
-        self.hora_fin = datetime.utcnow()
+        self.hora_fin = now_colombia()
         self.actualizar_estadisticas()
     
     def actualizar_estadisticas(self):
@@ -427,7 +428,7 @@ class Huevo(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     peso = db.Column(db.Float, nullable=False)  # Peso en gramos
     roto = db.Column(db.Boolean, default=False, nullable=False)  # Si está roto
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    timestamp = db.Column(db.DateTime, default=now_colombia)
     
     # Relaciones
     lote_id = db.Column(db.Integer, db.ForeignKey('lote_recoleccion.id'), nullable=False)
@@ -482,7 +483,7 @@ class InventarioHuevos(db.Model):
     cantidad_vendida = db.Column(db.Integer, default=0)
     cantidad_rota = db.Column(db.Integer, default=0)
     
-    ultima_actualizacion = db.Column(db.DateTime, default=datetime.utcnow)
+    ultima_actualizacion = db.Column(db.DateTime, default=now_colombia)
     
     def __repr__(self):
         return f'<InventarioHuevos {self.categoria.nombre}: {self.cantidad_disponible}>'
@@ -525,7 +526,7 @@ class Gasto(db.Model):
     __tablename__ = 'gasto'
 
     id = db.Column(db.Integer, primary_key=True)
-    fecha_hora = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, index=True)
+    fecha_hora = db.Column(db.DateTime, nullable=False, default=now_colombia, index=True)
     valor = db.Column(db.Numeric(12, 2), nullable=False)
     tipo = db.Column(db.String(20), nullable=False, index=True)  # insumos, servicios, otros
     descripcion = db.Column(db.Text, nullable=False)
@@ -533,8 +534,8 @@ class Gasto(db.Model):
     usuario_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
     usuario = db.relationship('User', backref=db.backref('gastos_registrados', lazy='dynamic'))
 
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    created_at = db.Column(db.DateTime, default=now_colombia, nullable=False)
+    updated_at = db.Column(db.DateTime, default=now_colombia, onupdate=now_colombia, nullable=False)
 
     def __repr__(self):
         return f'<Gasto {self.id} {self.tipo} ${self.valor}>'
@@ -572,8 +573,8 @@ class LoteGallinas(db.Model):
     observaciones = db.Column(db.Text, nullable=True)
     
     # Fechas de registro
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=now_colombia)
+    updated_at = db.Column(db.DateTime, default=now_colombia, onupdate=now_colombia)
     
     # Usuario responsable
     usuario_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
@@ -591,7 +592,7 @@ class LoteGallinas(db.Model):
         """Calcula la edad actual del lote en semanas"""
         if not self.fecha_ingreso:
             return 0
-        dias = (datetime.now().date() - self.fecha_ingreso).days
+        dias = (today_colombia() - self.fecha_ingreso).days
         return (dias // 7) + self.edad_semanas_ingreso
     
     def get_semanas_produccion(self):
@@ -611,7 +612,7 @@ class LoteGallinas(db.Model):
             return ultima_recoleccion.semana_produccion
         
         # Si no hay recolecciones, calcular por fecha (fallback)
-        dias = (datetime.now().date() - self.fecha_inicio_produccion).days
+        dias = (today_colombia() - self.fecha_inicio_produccion).days
         # Si es el mismo día o dentro de la primera semana, retornar 1
         if dias < 7:
             return 1 if dias >= 0 else 0
@@ -694,7 +695,7 @@ class RegistroMortalidad(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     lote_gallinas_id = db.Column(db.Integer, db.ForeignKey('lote_gallinas.id'), nullable=False)
     
-    fecha_registro = db.Column(db.Date, nullable=False, default=datetime.utcnow)
+    fecha_registro = db.Column(db.Date, nullable=False, default=today_colombia)
     cantidad = db.Column(db.Integer, nullable=False)
     
     # Causa de muerte
@@ -712,7 +713,7 @@ class RegistroMortalidad(db.Model):
     usuario_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     usuario = db.relationship('User', backref='registros_mortalidad')
     
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=now_colombia)
     
     def __repr__(self):
         return f'<RegistroMortalidad {self.cantidad} gallinas - {self.fecha_registro}>'
@@ -725,7 +726,7 @@ class VentaGallinas(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     lote_gallinas_id = db.Column(db.Integer, db.ForeignKey('lote_gallinas.id'), nullable=False)
     
-    fecha_venta = db.Column(db.Date, nullable=False, default=datetime.utcnow)
+    fecha_venta = db.Column(db.Date, nullable=False, default=today_colombia)
     cantidad = db.Column(db.Integer, nullable=False)
     
     # Información de venta
@@ -741,7 +742,7 @@ class VentaGallinas(db.Model):
     usuario_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     usuario = db.relationship('User', backref='ventas_gallinas_registradas')
     
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=now_colombia)
     
     def __repr__(self):
         return f'<VentaGallinas {self.numero_venta} - {self.cantidad} gallinas>'
@@ -754,7 +755,7 @@ class RegistroSanitario(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     lote_gallinas_id = db.Column(db.Integer, db.ForeignKey('lote_gallinas.id'), nullable=False)
     
-    fecha_aplicacion = db.Column(db.Date, nullable=False, default=datetime.utcnow)
+    fecha_aplicacion = db.Column(db.Date, nullable=False, default=today_colombia)
     tipo_tratamiento = db.Column(db.String(50), nullable=False)  # VACUNA, DESPARASITACION, VITAMINAS, ANTIBIOTICO
     
     # Detalles del tratamiento
@@ -777,7 +778,7 @@ class RegistroSanitario(db.Model):
     usuario_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     usuario = db.relationship('User', backref='registros_sanitarios')
     
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=now_colombia)
     
     def __repr__(self):
         return f'<RegistroSanitario {self.tipo_tratamiento} - {self.producto}>'
@@ -791,8 +792,8 @@ class SeparacionGallinas(db.Model):
     lote_gallinas_id = db.Column(db.Integer, db.ForeignKey('lote_gallinas.id'), nullable=False)
     
     # Fecha y hora de separación
-    fecha_separacion = db.Column(db.Date, nullable=False, default=datetime.utcnow)
-    hora_separacion = db.Column(db.Time, nullable=False, default=datetime.utcnow().time)
+    fecha_separacion = db.Column(db.Date, nullable=False, default=today_colombia)
+    hora_separacion = db.Column(db.Time, nullable=False, default=time_colombia)
     
     # Cantidad de gallinas separadas
     cantidad = db.Column(db.Integer, nullable=False)
@@ -821,8 +822,8 @@ class SeparacionGallinas(db.Model):
     usuario_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     usuario = db.relationship('User', backref='separaciones_gallinas')
     
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=now_colombia)
+    updated_at = db.Column(db.DateTime, default=now_colombia, onupdate=now_colombia)
     
     def __repr__(self):
         return f'<SeparacionGallinas {self.cantidad} gallinas - {self.fecha_separacion}>'
@@ -854,7 +855,7 @@ class Cliente(db.Model):
     limite_credito = db.Column(db.Numeric(10, 2), default=0.00)  # Límite de crédito en pesos
     
     # Fechas
-    fecha_registro = db.Column(db.DateTime, default=datetime.utcnow)
+    fecha_registro = db.Column(db.DateTime, default=now_colombia)
     
     # Relaciones
     ventas = db.relationship('Venta', backref='cliente', lazy='dynamic')
@@ -914,7 +915,7 @@ class Venta(db.Model):
     total = db.Column(db.Numeric(10, 2), nullable=False)
     
     # Fechas
-    fecha_venta = db.Column(db.DateTime, default=datetime.utcnow)
+    fecha_venta = db.Column(db.DateTime, default=now_colombia)
     fecha_vencimiento = db.Column(db.DateTime, nullable=True)  # Para ventas a crédito
     
     # Observaciones
@@ -992,7 +993,7 @@ class Pago(db.Model):
     referencia = db.Column(db.String(100), nullable=True)  # Número de transferencia, cheque, etc.
     
     # Fechas
-    fecha_pago = db.Column(db.DateTime, default=datetime.utcnow)
+    fecha_pago = db.Column(db.DateTime, default=now_colombia)
     
     # Observaciones
     observaciones = db.Column(db.Text, nullable=True)
@@ -1014,11 +1015,13 @@ class ConfiguracionVenta(db.Model):
     descripcion = db.Column(db.Text, nullable=True)
     
     # Fecha de modificación
-    fecha_modificacion = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    fecha_modificacion = db.Column(db.DateTime, default=now_colombia, onupdate=now_colombia)
     modificado_por = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     
     def __repr__(self):
         return f'<ConfiguracionVenta {self.clave}>'
+
+
 
 
 

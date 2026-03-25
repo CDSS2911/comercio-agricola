@@ -112,12 +112,21 @@
                     <hr>
                     <div class="row mb-2">
                         <div class="col">Subtotal:</div>
-                        <div class="col-auto">$<span id="subtotal">0.00</span></div>
+                        <div class="col-auto" style="min-width: 150px;">
+                            <input type="text" class="form-control form-control-sm text-end"
+                                   id="subtotalManual" inputmode="numeric" value="0"
+                                   onchange="calcularTotal()">
+                        </div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col text-muted">
+                            <small>Recomendado: $<span id="subtotalRecomendado">0.00</span></small>
+                        </div>
                     </div>
                     <div class="row mb-2">
                         <div class="col">
-                            <input type="number" class="form-control form-control-sm" 
-                                   id="descuento" placeholder="Descuento" min="0" step="0.01" 
+                            <input type="text" class="form-control form-control-sm" 
+                                   id="descuento" placeholder="Descuento" inputmode="numeric"
                                    onchange="calcularTotal()">
                         </div>
                         <div class="col-auto">-$<span id="montoDescuento">0.00</span></div>
@@ -209,6 +218,37 @@
 let carrito = [];
 let subtotal = 0;
 let clienteSeleccionado = null;
+
+function formatearMoneda(valor) {
+    const numero = Math.round(Number(valor) || 0);
+    return numero.toLocaleString('es-CO', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+    });
+}
+
+function parsearMoneda(valor) {
+    if (valor === null || valor === undefined) return 0;
+    let texto = valor.toString().trim();
+    if (!texto) return 0;
+    texto = texto.replace(/\s/g, '');
+    if (texto.includes('.') && texto.includes(',')) {
+        texto = texto.replace(/\./g, '').replace(',', '.');
+    } else if (texto.includes(',') && !texto.includes('.')) {
+        texto = texto.replace(',', '.');
+    } else if (texto.includes('.') && (texto.match(/\./g) || []).length === 1) {
+        const partes = texto.split('.');
+        if (partes.length === 2 && partes[1].length === 3) {
+            texto = partes[0] + partes[1];
+        }
+    } else if ((texto.match(/\./g) || []).length > 1) {
+        texto = texto.replace(/\./g, '');
+    }
+    texto = texto.replace(/[^0-9.-]/g, '');
+    const numero = Number(texto);
+    return Number.isFinite(numero) ? Math.round(numero) : 0;
+}
+
 const clientesBase = [
     {% for cliente in clientes %}
     {
@@ -234,14 +274,16 @@ function agregarProducto(id, nombre, precio, disponible) {
             return;
         }
         existente.cantidad += 1;
-        existente.subtotal = existente.cantidad * existente.precio;
+        existente.subtotal_recomendado = existente.cantidad * existente.precio_recomendado;
+        existente.subtotal = existente.subtotal_recomendado;
     } else {
         carrito.push({
             id: id,
             nombre: nombre,
-            precio: precio,
+            precio_recomendado: precio,
             cantidad: 1,
             disponible: disponible,
+            subtotal_recomendado: precio,
             subtotal: precio
         });
     }
@@ -292,7 +334,7 @@ function actualizarCarrito() {
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <strong>${item.nombre}</strong><br>
-                            <small class="text-muted">$${item.precio.toFixed(2)} c/u</small>
+                            <small class="text-muted">Recomendado: $${formatearMoneda(item.subtotal_recomendado)} (${formatearMoneda(item.precio_recomendado)} c/u)</small>
                         </div>
                         <div class="d-flex align-items-center">
                             <button type="button" class="btn btn-sm btn-outline-danger me-2" onclick="cambiarCantidad(${index}, -1)">
@@ -311,8 +353,11 @@ function actualizarCarrito() {
                             </button>
                         </div>
                     </div>
+                    <div class="mt-2">
+                        <small class="text-muted">Subtotal producto: $${formatearMoneda(item.subtotal)}</small>
+                    </div>
                     <div class="text-end mt-1">
-                        <strong>$${item.subtotal.toFixed(2)}</strong>
+                        <strong>$${formatearMoneda(item.subtotal)}</strong>
                         <br><small class="text-muted">${Math.floor(item.cantidad / 30)} paneles, ${item.cantidad % 30} huevos</small>
                     </div>
                 </div>
@@ -322,6 +367,8 @@ function actualizarCarrito() {
     
     contenedor.innerHTML = html;
     document.getElementById('resumenVenta').style.display = 'block';
+    document.getElementById('subtotalRecomendado').textContent = formatearMoneda(subtotal);
+    document.getElementById('subtotalManual').value = formatearMoneda(subtotal);
     
     calcularTotal();
 }
@@ -342,7 +389,8 @@ function cambiarCantidad(index, delta) {
     }
     
     item.cantidad = nuevaCantidad;
-    item.subtotal = item.cantidad * item.precio;
+    item.subtotal_recomendado = item.cantidad * item.precio_recomendado;
+    item.subtotal = item.subtotal_recomendado;
     
     actualizarCarrito();
 }
@@ -366,7 +414,8 @@ function actualizarCantidad(index, valor) {
     }
     
     item.cantidad = nuevaCantidad;
-    item.subtotal = item.cantidad * item.precio;
+    item.subtotal_recomendado = item.cantidad * item.precio_recomendado;
+    item.subtotal = item.subtotal_recomendado;
     
     actualizarCarrito();
 }
@@ -379,12 +428,22 @@ function eliminarProducto(index) {
 
 // Calcular total
 function calcularTotal() {
-    const descuento = parseFloat(document.getElementById('descuento').value) || 0;
-    const total = subtotal - descuento;
+    const subtotalInput = document.getElementById('subtotalManual');
+    const descuentoInput = document.getElementById('descuento');
+    let subtotalManual = parsearMoneda(subtotalInput.value);
     
-    document.getElementById('subtotal').textContent = subtotal.toFixed(2);
-    document.getElementById('montoDescuento').textContent = descuento.toFixed(2);
-    document.getElementById('total').textContent = total.toFixed(2);
+    if (isNaN(subtotalManual) || subtotalManual <= 0) {
+        subtotalManual = subtotal;
+        subtotalInput.value = formatearMoneda(subtotal);
+    }
+    
+    const descuento = parsearMoneda(descuentoInput.value) || 0;
+    const total = subtotalManual - descuento;
+    
+    subtotalInput.value = formatearMoneda(subtotalManual);
+    descuentoInput.value = descuento > 0 ? formatearMoneda(descuento) : '';
+    document.getElementById('montoDescuento').textContent = formatearMoneda(descuento);
+    document.getElementById('total').textContent = formatearMoneda(total);
     
     actualizarBotonProcesar();
 }
@@ -424,18 +483,20 @@ function procesarVenta() {
     const datos = {
         tipo_pago: tipoVenta,
         cliente_id: clienteSeleccionado ? clienteSeleccionado.id : null,
-        descuento: parseFloat(document.getElementById('descuento').value) || 0,
+        descuento: parsearMoneda(document.getElementById('descuento').value) || 0,
         observaciones: document.getElementById('observaciones').value,
+        subtotal_general: parsearMoneda(document.getElementById('subtotalManual').value) || subtotal,
         detalles: carrito.map(item => ({
             categoria_id: item.id,
             cantidad_huevos: item.cantidad,
-            precio_unitario: item.precio
+            subtotal: item.subtotal,
+            precio_unitario: item.cantidad > 0 ? (item.subtotal / item.cantidad) : 0
         }))
     };
     
     // Confirmar venta
-    const total = parseFloat(document.getElementById('total').textContent);
-    const confirmMsg = `¿Confirmar venta por $${total.toFixed(2)}?`;
+    const total = parsearMoneda(document.getElementById('total').textContent);
+    const confirmMsg = `¿Confirmar venta por $${formatearMoneda(total)}?`;
     
     if (!confirm(confirmMsg)) {
         return;
@@ -458,7 +519,7 @@ function procesarVenta() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            alert(`Venta procesada exitosamente.\nNúmero: ${data.numero_venta}\nTotal: $${data.total.toFixed(2)}`);
+            alert(`Venta procesada exitosamente.\nNúmero: ${data.numero_venta}\nTotal: $${formatearMoneda(data.total)}`);
             
             // Limpiar carrito y recargar página
             carrito = [];
@@ -504,7 +565,7 @@ function mostrarResultadosClientes(clientes) {
     contenedor.innerHTML = clientes.map(cliente => `
         <button type="button" class="list-group-item list-group-item-action" data-cliente-id="${cliente.id}" style="background: #111; color: #fff; border-color: #333; cursor: pointer;">
             <strong>${cliente.nombre_completo}</strong><br>
-            <small style="color: #bbb;">Limite: $${Number(cliente.limite_credito).toFixed(2)} | Saldo: $${Number(cliente.saldo_pendiente).toFixed(2)}</small>
+            <small style="color: #bbb;">Limite: $${formatearMoneda(cliente.limite_credito)} | Saldo: $${formatearMoneda(cliente.saldo_pendiente)}</small>
         </button>
     `).join('');
     contenedor.style.display = 'block';
@@ -566,8 +627,8 @@ function seleccionarCliente(cliente) {
     
     if (clienteIdEl) clienteIdEl.value = cliente.id;
     if (nombreEl) nombreEl.textContent = cliente.nombre_completo;
-    if (limiteEl) limiteEl.textContent = Number(cliente.limite_credito).toFixed(2);
-    if (saldoEl) saldoEl.textContent = Number(cliente.saldo_pendiente).toFixed(2);
+    if (limiteEl) limiteEl.textContent = formatearMoneda(cliente.limite_credito);
+    if (saldoEl) saldoEl.textContent = formatearMoneda(cliente.saldo_pendiente);
     if (seleccionadoEl) seleccionadoEl.style.display = 'block';
     if (buscarEl) buscarEl.value = cliente.nombre_completo;
     

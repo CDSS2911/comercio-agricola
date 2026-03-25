@@ -451,6 +451,32 @@
 
     <!-- Ventas de Gallinas -->
     <div class="col-md-12 mt-4">
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <h4><i class="fas fa-sack-dollar me-2"></i>Ingresos: Huevos vs Gallinas</h4>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="chartIngresosComparado" height="140"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 mb-3">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <h4><i class="fas fa-boxes-stacked me-2"></i>Stock por Categoría</h4>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="chartStockCategorias" height="140"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ventas de Gallinas -->
+    <div class="col-md-12 mt-4">
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h4><i class="fas fa-dollar-sign me-2"></i>Ventas de Gallinas</h4>
@@ -570,6 +596,8 @@ let chartCategorias = null;
 let chartTorta = null;
 let chartEvolucion = null;
 let chartMortalidad = null;
+let chartIngresosComparado = null;
+let chartStockCategorias = null;
 let periodoActual = 'diario';
 let vistaActual = 'grafico';
 let mostrarCategoriasActivo = true;
@@ -923,8 +951,97 @@ function fetchReportes() {
             mortalidadLabels = data.mortalidad.labels;
             mortalidadData = data.mortalidad.data;
             renderMortalidadChart();
+            renderIngresosComparado(data);
+            renderStockCategorias(data);
         })
         .catch(error => console.error('Error cargando reportes:', error));
+}
+
+function renderIngresosComparado(data) {
+    const canvas = document.getElementById('chartIngresosComparado');
+    if (!canvas) return;
+
+    const ventasHuevos = (periodoActual === 'diario' ? data.ventas_huevos_diarias : data.ventas_huevos_mensuales) || [];
+    const labels = ventasHuevos.map(item => periodoActual === 'diario' ? item.fecha : item.mes);
+    const ingresosHuevos = ventasHuevos.map(item => Number(item.total || 0));
+
+    const ventasGallinas = data.ventas_gallinas || [];
+    const gallinasPorLabel = {};
+    ventasGallinas.forEach(item => {
+        const key = (item.fecha || '').trim();
+        gallinasPorLabel[key] = (gallinasPorLabel[key] || 0) + Number(item.precio_total || 0);
+    });
+    const ingresosGallinas = labels.map(label => gallinasPorLabel[label] || 0);
+
+    if (chartIngresosComparado) {
+        chartIngresosComparado.destroy();
+    }
+    chartIngresosComparado = new Chart(canvas.getContext('2d'), {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Ingresos Huevos',
+                    data: ingresosHuevos,
+                    borderColor: 'rgba(13, 110, 253, 1)',
+                    backgroundColor: 'rgba(13, 110, 253, 0.2)',
+                    tension: 0.3,
+                    fill: true
+                },
+                {
+                    label: 'Ingresos Gallinas',
+                    data: ingresosGallinas,
+                    borderColor: 'rgba(25, 135, 84, 1)',
+                    backgroundColor: 'rgba(25, 135, 84, 0.2)',
+                    tension: 0.3,
+                    fill: true
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+}
+
+function renderStockCategorias(data) {
+    const canvas = document.getElementById('chartStockCategorias');
+    if (!canvas) return;
+
+    const stock = data.disponibilidad_huevos || [];
+    const labels = stock.map(item => item.nombre);
+    const valores = stock.map(item => Number(item.huevos || 0));
+
+    if (chartStockCategorias) {
+        chartStockCategorias.destroy();
+    }
+    chartStockCategorias = new Chart(canvas.getContext('2d'), {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Huevos en Stock',
+                data: valores,
+                backgroundColor: 'rgba(255, 193, 7, 0.7)',
+                borderColor: 'rgba(255, 193, 7, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
 }
 
 function actualizarTablaReportes(tbodyId, filas, renderRow) {
@@ -952,7 +1069,9 @@ function descargarExcel() {
         { id: 'chartCategorias', key: 'categorias' },
         { id: 'chartTorta', key: 'torta' },
         { id: 'chartEvolucion', key: 'evolucion' },
-        { id: 'chartMortalidad', key: 'mortalidad' }
+        { id: 'chartMortalidad', key: 'mortalidad' },
+        { id: 'chartIngresosComparado', key: 'ingresos_comparado' },
+        { id: 'chartStockCategorias', key: 'stock_categorias' }
     ];
     canvases.forEach(item => {
         const canvas = document.getElementById(item.id);

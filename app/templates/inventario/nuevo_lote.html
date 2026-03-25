@@ -1,12 +1,12 @@
 {% extends "base.html" %}
 
-{% block title %}Nuevo Lote de Recolección{% endblock %}
+{% block title %}Nuevo Lote de Recoleccion{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
     <div class="row">
         <div class="col-12">
-            <h2><i class="fas fa-plus me-2"></i>Nuevo Lote de Recolección</h2>
+            <h2><i class="fas fa-plus me-2"></i>Nuevo Lote de Recoleccion</h2>
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb">
                     <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">Inicio</a></li>
@@ -21,7 +21,7 @@
         <div class="col-lg-8">
             <div class="card shadow">
                 <div class="card-header">
-                    <h6 class="m-0 font-weight-bold text-primary">Información del Lote</h6>
+                    <h6 class="m-0 font-weight-bold text-primary">Informacion del Lote</h6>
                 </div>
                 <div class="card-body">
                     {% with messages = get_flashed_messages(with_categories=true) %}
@@ -37,17 +37,26 @@
 
                     <form method="POST" action="{{ url_for('inventario.crear_lote') }}">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                        
+
                         <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="fecha_recoleccion" class="form-label">Fecha de Recolección</label>
-                                <input type="date" class="form-control" id="fecha_recoleccion" 
-                                       name="fecha_recoleccion" value="{{ today }}" required>
+                            <div class="col-md-3 mb-3">
+                                <label for="fecha_recoleccion" class="form-label">Fecha de Recoleccion</label>
+                                <input type="date" class="form-control" id="fecha_recoleccion"
+                                       value="{{ today }}" readonly disabled>
                                 <small class="form-text text-muted">
-                                    Fecha en que se realiza la recolección de huevos.
+                                    Fecha actual de Colombia (bloqueada por el sistema).
                                 </small>
                             </div>
-                            
+
+                            <div class="col-md-3 mb-3">
+                                <label for="hora_recoleccion" class="form-label">Hora de Inicio</label>
+                                <input type="text" class="form-control" id="hora_recoleccion"
+                                       value="{{ now_time }}" readonly disabled>
+                                <small class="form-text text-muted">
+                                    Hora actual de Colombia (bloqueada por el sistema).
+                                </small>
+                            </div>
+
                             <div class="col-md-6 mb-3">
                                 <label for="lote_gallinas_id" class="form-label">
                                     <i class="fas fa-egg"></i> Lote de Gallinas (Opcional)
@@ -61,11 +70,11 @@
                                     {% endfor %}
                                 </select>
                                 <small class="form-text text-muted">
-                                    Vincula esta recolección con un lote de gallinas para seguimiento.
+                                    Vincula esta recoleccion con un lote de gallinas para seguimiento.
                                 </small>
                             </div>
                         </div>
-                        
+
                         <div class="row">
                             <div class="col-md-12 mb-3">
                                 <label class="form-label">Usuario Encargado</label>
@@ -73,27 +82,26 @@
                                     <i class="fas fa-user me-2"></i>{{ current_user.get_full_name() }}
                                 </div>
                                 <small class="form-text text-muted">
-                                    El usuario actual será asignado como encargado del lote.
+                                    El usuario actual sera asignado como encargado del lote.
                                 </small>
                             </div>
                         </div>
 
                         <div class="mb-3">
                             <label for="observaciones" class="form-label">Observaciones (Opcional)</label>
-                            <textarea class="form-control" id="observaciones" name="observaciones" 
-                                      rows="3" placeholder="Notas adicionales sobre esta recolección..."></textarea>
+                            <textarea class="form-control" id="observaciones" name="observaciones"
+                                      rows="3" placeholder="Notas adicionales sobre esta recoleccion..."></textarea>
                             <small class="form-text text-muted">
                                 Puedes agregar notas sobre condiciones especiales, clima, etc.
                             </small>
                         </div>
 
-                        <!-- Información importante -->
                         <div class="alert alert-info alert-permanent">
-                            <h6><i class="fas fa-info-circle me-2"></i>Información Importante</h6>
+                            <h6><i class="fas fa-info-circle me-2"></i>Informacion Importante</h6>
                             <ul class="mb-0">
-                                <li>El número de lote se generará automáticamente</li>
-                                <li>Una vez creado, podrás comenzar el pesaje de huevos</li>
-                                <li>Los huevos se clasificarán automáticamente por peso</li>
+                                <li>El numero de lote se generara automaticamente</li>
+                                <li>Una vez creado, podras comenzar el pesaje de huevos</li>
+                                <li>Los huevos se clasificaran automaticamente por peso</li>
                                 <li>Puedes usar archivos de texto para cargar pesos masivamente</li>
                             </ul>
                         </div>
@@ -110,10 +118,9 @@
                 </div>
             </div>
 
-            <!-- Instrucciones de uso -->
             <div class="card shadow mt-4">
                 <div class="card-header">
-                    <h6 class="m-0 font-weight-bold text-success">¿Cómo usar el sistema de pesaje?</h6>
+                    <h6 class="m-0 font-weight-bold text-success">Como usar el sistema de pesaje?</h6>
                 </div>
                 <div class="card-body">
                     <div class="row">
@@ -121,25 +128,25 @@
                             <h6><i class="fas fa-keyboard me-2 text-primary"></i>Pesaje Manual</h6>
                             <ul>
                                 <li>Ingresa el peso de cada huevo individualmente</li>
-                                <li>Marca huevos rotos con un botón especial</li>
-                                <li>La clasificación se hace automáticamente</li>
+                                <li>Marca huevos rotos con un boton especial</li>
+                                <li>La clasificacion se hace automaticamente</li>
                             </ul>
                         </div>
                         <div class="col-md-6">
                             <h6><i class="fas fa-file-alt me-2 text-success"></i>Archivo de Texto</h6>
                             <ul>
-                                <li>Crea un archivo .txt con un peso por línea</li>
+                                <li>Crea un archivo .txt con un peso por linea</li>
                                 <li>Ejemplo: 65.5, 72.1, 58.3</li>
                                 <li>Copia y pega el contenido en la interfaz</li>
                             </ul>
                         </div>
                     </div>
-                    
+
                     <div class="mt-3">
-                        <h6><i class="fas fa-tags me-2 text-info"></i>Clasificación Automática</h6>
+                        <h6><i class="fas fa-tags me-2 text-info"></i>Clasificacion Automatica</h6>
                         <p class="text-muted mb-0">
-                            Los huevos se clasifican automáticamente según su peso en las categorías predefinidas 
-                            (XL, L, M, S, etc.). Si no hay categorías configuradas, contacta al administrador.
+                            Los huevos se clasifican automaticamente segun su peso en las categorias predefinidas
+                            (XL, L, M, S, etc.). Si no hay categorias configuradas, contacta al administrador.
                         </p>
                     </div>
                 </div>
@@ -147,16 +154,4 @@
         </div>
     </div>
 </div>
-
-<script>
-// Establecer la fecha actual por defecto
-document.addEventListener('DOMContentLoaded', function() {
-    const fechaInput = document.getElementById('fecha_recoleccion');
-    if (!fechaInput.value) {
-        const hoy = new Date();
-        const fechaFormateada = hoy.toISOString().split('T')[0];
-        fechaInput.value = fechaFormateada;
-    }
-});
-</script>
 {% endblock %}

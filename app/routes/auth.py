@@ -1,4 +1,3 @@
-﻿from datetime import datetime
 from flask import Blueprint, render_template, redirect, url_for, flash, request
 from flask_login import login_user, logout_user, current_user, login_required
 from werkzeug.urls import url_parse
@@ -6,6 +5,7 @@ from app import db
 from app.models import User, LoginAttempt
 from app.forms import LoginForm, RegistrationForm, RequestResetForm, ResetPasswordForm
 from app.utils.email import send_password_reset_email, send_confirmation_email
+from app.utils.timezone import now_colombia
 
 bp = Blueprint('auth', __name__)
 
@@ -46,7 +46,7 @@ def login():
         
         # Login exitoso
         login_attempt.successful = True
-        user.last_login = datetime.utcnow()
+        user.last_login = now_colombia()
         db.session.add(login_attempt)
         db.session.add(user)
         db.session.commit()
@@ -160,3 +160,5 @@ def confirm_email(token):
     flash('¡Tu email ha sido confirmado!', 'success')
     
     return redirect(url_for('main.index'))
+
+

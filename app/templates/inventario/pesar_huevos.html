@@ -115,15 +115,20 @@
                             <select class="form-select" id="pesa_id" name="pesa_id" required>
                                 <option value="">Selecciona una pesa</option>
                                 {% for pesa in pesas_activas %}
-                                <option value="{{ pesa.id }}" {% if lote.pesa_id == pesa.id %}selected{% endif %}>ID {{ pesa.id }} - {{ pesa.nombre }} ({{ pesa.puerto }})</option>
+                                {% set ocupada_por_otro = (pesa.id in pesas_ocupadas and lote.pesa_id != pesa.id) %}
+                                <option value="{{ pesa.id }}" {% if lote.pesa_id == pesa.id %}selected{% endif %} {% if ocupada_por_otro %}disabled{% endif %}>
+                                    ID {{ pesa.id }} - {{ pesa.nombre }} ({{ pesa.puerto }}){% if ocupada_por_otro %} - En uso en lote {{ pesas_ocupadas[pesa.id] }}{% endif %}
+                                </option>
                                 {% endfor %}
                             </select>
                             {% if not pesas_activas %}
                             <small class="text-danger">No hay pesas activas. Crea una en Configuración de Pesas.</small>
+                            {% elif not hay_pesa_disponible and not lote.pesa_id %}
+                            <small class="text-warning">Todas las pesas activas estan en uso por otros lotes en proceso.</small>
                             {% endif %}
                         </div>
                         <div class="col-md-4">
-                            <button type="submit" class="btn btn-info w-100" {% if not pesas_activas %}disabled{% endif %}>
+                            <button type="submit" class="btn btn-info w-100" {% if (not pesas_activas) or (not hay_pesa_disponible and not lote.pesa_id) %}disabled{% endif %}>
                                 <i class="fas fa-save me-2"></i>Guardar Pesa
                             </button>
                         </div>
@@ -217,6 +222,23 @@
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
 
     <div class="mb-3">
+        <a class="btn btn-outline-success btn-sm" href="{{ url_for('inventario.descargar_plantilla_categorias', lote_id=lote.id) }}">
+            <i class="fas fa-file-excel me-2"></i>Descargar plantilla XLSX (por categoria)
+        </a>
+        <small class="form-text text-muted d-block mt-1">
+            Usa esta plantilla para cargar cantidades por categoria (ejemplo: AAA=200, AA=300).
+        </small>
+    </div>
+
+    <div class="mb-3">
+        <label for="archivo_xlsx" class="form-label">Archivo .xlsx (carga masiva por categoria)</label>
+        <input class="form-control" type="file" id="archivo_xlsx" name="archivo_xlsx" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+        <small class="form-text text-muted">
+            Se procesan las columnas: Categoria y Cantidad.
+        </small>
+    </div>
+
+    <div class="mb-3">
         <label for="archivo_txt" class="form-label">Archivo .txt (opcional)</label>
         <input class="form-control" type="file" id="archivo_txt" name="archivo_txt" accept=".txt,text/plain">
         <small class="form-text text-muted">
@@ -237,6 +259,8 @@
                             <i class="fas fa-exclamation-triangle me-2"></i>
                             <strong>Importante:</strong> 
                             <ul class="mb-0">
+                                <li>XLSX: columna A=Categoria, columna B=Cantidad</li>
+                                <li>XLSX: si subes XLSX, tiene prioridad sobre TXT</li>
                                 <li>Un peso por línea (ejemplo: 65.5)</li>
                                 <li>Usa punto (.) como separador decimal</li>
                                 <li>Los huevos se clasificarán automáticamente</li>
@@ -373,6 +397,7 @@
 <script>
 let ultimoHuevoId = {{ huevos[-1].id if huevos else 0 }};
 let pollInFlight = false;
+let categoriaHideTimer = null;
 
 function aplicarEstadisticas(stats) {
     if (!stats) {
@@ -395,6 +420,13 @@ function mostrarCategoria(huevo) {
     categoriaTexto.textContent = huevo.categoria || 'Sin clasificar';
     categoriaSubtexto.textContent = huevo.roto ? 'Huevo Roto' : 'Última Categoría Agregada';
     categoriaDisplay.style.display = 'block';
+
+    if (categoriaHideTimer) {
+        clearTimeout(categoriaHideTimer);
+    }
+    categoriaHideTimer = setTimeout(function() {
+        categoriaDisplay.style.display = 'none';
+    }, 5000);
 }
 
 function actualizarEstadisticas() {
@@ -595,6 +627,10 @@ setInterval(function() {
 }, 250);
 </script>
 {% endblock %}
+
+
+
+
 
 
 

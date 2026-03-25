@@ -2,7 +2,7 @@
 setlocal
 
 REM ====== Configura estos valores ======
-set "BASE_URL=http://localhost:5000"
+set "BASE_URL=http://hrentubolsillo.org"
 set "PESA_ID=1"
 set "TOKEN=Cdss_29112002"
 set "PORT=COM15"

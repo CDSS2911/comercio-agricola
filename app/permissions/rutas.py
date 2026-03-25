@@ -42,7 +42,6 @@ ENDPOINT_PERMISSIONS = {
     'inventario.nuevo_lote': 'inventario.access',
     'inventario.pesar_huevos': 'inventario.access',
     'inventario.ver_detalle_lote': 'inventario.access',
-    'inventario.reportes': 'inventario.access',
     'inventario.movimientos_combinados': 'inventario.access',
     'inventario.exportar_movimientos_excel': 'inventario.access',
     # Inventario (configuracion)

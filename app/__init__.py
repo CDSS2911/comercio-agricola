@@ -5,6 +5,7 @@ from flask_mail import Mail
 from flask_login import LoginManager
 from flask_wtf.csrf import CSRFProtect
 from config import Config
+from app.utils.timezone import set_process_timezone
 
 db = SQLAlchemy()
 migrate = Migrate()
@@ -16,6 +17,7 @@ login_manager.login_message = 'Debes iniciar sesión para acceder a esta página
 
 
 def create_app(config_class=Config):
+    set_process_timezone(getattr(config_class, 'APP_TIMEZONE', 'America/Bogota'))
     app = Flask(__name__)
     app.config.from_object(config_class)
 
@@ -62,6 +64,12 @@ def create_app(config_class=Config):
 
     with app.app_context():
         sync_defined_permissions()
+        try:
+            from app.routes.usuarios import ensure_rbac_seed
+            ensure_rbac_seed()
+        except Exception:
+            # Evita bloquear el arranque si hay un problema temporal en el seed RBAC.
+            pass
 
     return app
 

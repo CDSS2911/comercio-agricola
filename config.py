@@ -15,6 +15,14 @@ class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'clave-secreta-super-segura-cambiar-en-produccion'
 
     # Configuracion de la base de datos MySQL/MariaDB
+    # Desarrollo
+    # MYSQL_HOST = os.environ.get('MYSQL_HOST') or 'localhost'
+    # MYSQL_PORT = int(os.environ.get('MYSQL_PORT') or 3306)
+    # MYSQL_USER = os.environ.get('MYSQL_USER') or 'root'
+    # MYSQL_PASSWORD = os.environ.get('MYSQL_PASSWORD') or ''
+    # MYSQL_DB = os.environ.get('MYSQL_DB') or 'gestion_usuarios' 
+
+    # Produccion
     MYSQL_HOST = os.environ.get('MYSQL_HOST') or '185.181.254.86'
     MYSQL_PORT = int(os.environ.get('MYSQL_PORT') or 3306)
     MYSQL_USER = os.environ.get('MYSQL_USER') or 'hrentubo_root'
@@ -39,3 +47,6 @@ class Config:
 
     # Configuracion de paginacion
     POSTS_PER_PAGE = 10
+
+    # Zona horaria operativa del sistema
+    APP_TIMEZONE = os.environ.get('APP_TIMEZONE') or 'America/Bogota'

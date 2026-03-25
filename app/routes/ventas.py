@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify
 from flask_login import login_required, current_user
-from sqlalchemy import func, and_, or_
+from sqlalchemy import func, and_, or_, inspect as sa_inspect
 from datetime import datetime, timedelta
 from app.models import (User, Cliente, Venta, DetalleVenta, Pago, 
                        CategoriaHuevo, Huevo, LoteRecoleccion, 
@@ -10,6 +10,7 @@ from app.utils.excel import create_excel_response, create_excel_multisheet_respo
 import uuid
 
 ventas_bp = Blueprint('ventas', __name__, url_prefix='/ventas')
+SYSTEM_CASH_CLIENT_DOC = '__SISTEMA_CONTADO__'
 
 
 def _redirect_back(default_endpoint='ventas.historial_ventas', **values):
@@ -17,6 +18,52 @@ def _redirect_back(default_endpoint='ventas.historial_ventas', **values):
     if destino:
         return redirect(destino)
     return redirect(url_for(default_endpoint, **values))
+
+
+def _cliente_contado_legacy_filter():
+    """Excluir cliente legado CONTADO de vistas de clientes."""
+    doc = func.upper(func.coalesce(Cliente.numero_identificacion, ''))
+    return and_(
+        doc != 'CONTADO',
+        doc != SYSTEM_CASH_CLIENT_DOC
+    )
+
+
+def _venta_cliente_admite_null():
+    """Detecta en runtime si venta.cliente_id permite NULL en la BD actual."""
+    try:
+        columnas = sa_inspect(db.engine).get_columns('venta')
+        for col in columnas:
+            if col.get('name') == 'cliente_id':
+                return bool(col.get('nullable', True))
+    except Exception:
+        pass
+    return True
+
+
+def _get_or_create_system_cash_client():
+    """Cliente técnico para compatibilidad con BD legacy donde cliente_id es NOT NULL."""
+    cliente = Cliente.query.filter(
+        func.upper(func.coalesce(Cliente.numero_identificacion, '')) == SYSTEM_CASH_CLIENT_DOC
+    ).first()
+
+    if cliente:
+        if not cliente.activo:
+            cliente.activo = True
+            db.session.flush()
+        return cliente
+
+    cliente = Cliente(
+        nombre='Cliente',
+        apellido='Contado',
+        tipo_identificacion='NA',
+        numero_identificacion=SYSTEM_CASH_CLIENT_DOC,
+        limite_credito=0,
+        activo=True
+    )
+    db.session.add(cliente)
+    db.session.flush()
+    return cliente
 
 
 @ventas_bp.route('/')
@@ -53,6 +100,7 @@ def ventas_dashboard():
     
     # Clientes con saldo pendiente
     clientes_pendientes = Cliente.query.join(Venta).filter(
+        _cliente_contado_legacy_filter(),
         Venta.estado.in_(['pendiente', 'parcial']),
         Cliente.activo == True
     ).distinct().limit(10).all()
@@ -89,7 +137,10 @@ def nueva_venta():
     ).all()
     
     # Clientes activos para venta a crédito
-    clientes = Cliente.query.filter_by(activo=True).order_by(Cliente.nombre).all()
+    clientes = Cliente.query.filter(
+        _cliente_contado_legacy_filter(),
+        Cliente.activo == True
+    ).order_by(Cliente.nombre).all()
     
     return render_template('ventas/nueva_venta.html',
                          title='Nueva Venta',
@@ -111,6 +162,7 @@ def procesar_venta():
         tipo_pago = data.get('tipo_pago', 'contado')
         cliente_id = data.get('cliente_id') if tipo_pago == 'credito' else None
         descuento = float(data.get('descuento', 0))
+        subtotal_general = float(data.get('subtotal_general', 0) or 0)
         
         # Validar cliente si es venta a credito
         cliente = None
@@ -121,21 +173,10 @@ def procesar_venta():
             if not cliente or not cliente.activo:
                 return jsonify({'error': 'Cliente no valido'}), 400
         else:
-            # Para contado, asegurar un cliente generico si la BD no permite NULL
-            if not cliente_id:
-                cliente = Cliente.query.filter_by(numero_identificacion='CONTADO').first()
-                if not cliente:
-                    cliente = Cliente(
-                        nombre='Cliente',
-                        apellido='Contado',
-                        tipo_identificacion='NA',
-                        numero_identificacion='CONTADO',
-                        limite_credito=0,
-                        activo=True
-                    )
-                    db.session.add(cliente)
-                    db.session.flush()
-                cliente_id = cliente.id
+            # Contado por defecto del sistema: si la BD es legacy (NOT NULL), usar cliente técnico oculto.
+            cliente_id = None
+            if not _venta_cliente_admite_null():
+                cliente_id = _get_or_create_system_cash_client().id
 
         # Calcular subtotal y verificar inventario
         subtotal = 0
@@ -144,7 +185,17 @@ def procesar_venta():
         for detalle in data['detalles']:
             categoria_id = detalle['categoria_id']
             cantidad_huevos = int(detalle['cantidad_huevos'])
-            precio_unitario = float(detalle['precio_unitario'])
+            precio_unitario = float(detalle.get('precio_unitario', 0))
+            subtotal_item = float(detalle.get('subtotal', 0))
+            
+            if cantidad_huevos <= 0:
+                return jsonify({'error': 'La cantidad de huevos debe ser mayor a cero'}), 400
+            if subtotal_item <= 0:
+                return jsonify({'error': 'El subtotal del producto debe ser mayor a cero'}), 400
+            if precio_unitario <= 0:
+                precio_unitario = subtotal_item / cantidad_huevos
+            if precio_unitario <= 0:
+                return jsonify({'error': 'El precio unitario calculado no es valido'}), 400
             
             # Verificar inventario disponible
             disponibles = db.session.query(func.count(Huevo.id)).filter(
@@ -159,7 +210,6 @@ def procesar_venta():
                     'error': f'No hay suficientes huevos disponibles de categoría {categoria.nombre}. Disponibles: {disponibles}'
                 }), 400
             
-            subtotal_item = cantidad_huevos * precio_unitario
             subtotal += subtotal_item
             
             detalles_procesados.append({
@@ -169,6 +219,22 @@ def procesar_venta():
                 'precio_unitario': precio_unitario,
                 'subtotal': subtotal_item
             })
+        
+        # Permitir ajuste manual del subtotal general de toda la venta
+        if subtotal_general > 0 and subtotal > 0 and abs(subtotal_general - subtotal) > 0.009:
+            factor = subtotal_general / subtotal
+            for d in detalles_procesados:
+                d['subtotal'] = round(float(d['subtotal']) * factor, 2)
+                d['precio_unitario'] = d['subtotal'] / d['cantidad_huevos']
+            
+            diferencia = round(subtotal_general - sum(float(d['subtotal']) for d in detalles_procesados), 2)
+            if detalles_procesados and abs(diferencia) > 0:
+                detalles_procesados[-1]['subtotal'] = round(float(detalles_procesados[-1]['subtotal']) + diferencia, 2)
+                detalles_procesados[-1]['precio_unitario'] = detalles_procesados[-1]['subtotal'] / detalles_procesados[-1]['cantidad_huevos']
+            
+            subtotal = sum(float(d['subtotal']) for d in detalles_procesados)
+        elif subtotal_general > 0:
+            subtotal = subtotal_general
         
         total = subtotal - descuento
         
@@ -301,7 +367,10 @@ def historial_ventas():
         pagos_por_venta = {venta_id: float(monto_pagado or 0) for venta_id, monto_pagado in pagos_rows}
     
     # Obtener clientes para el filtro
-    clientes = Cliente.query.filter_by(activo=True).order_by(Cliente.nombre).all()
+    clientes = Cliente.query.filter(
+        _cliente_contado_legacy_filter(),
+        Cliente.activo == True
+    ).order_by(Cliente.nombre).all()
     
     return render_template('ventas/historial.html',
                          title='Historial de Ventas',
@@ -373,7 +442,7 @@ def export_excel_ventas():
 
     if tabla == 'clientes':
         search = request.args.get('search', '').strip()
-        query = Cliente.query
+        query = Cliente.query.filter(_cliente_contado_legacy_filter())
         if search:
             query = query.filter(
                 or_(
@@ -489,6 +558,7 @@ def export_excel_ventas():
 
     if tabla == 'dashboard_cartera':
         clientes_pendientes = Cliente.query.join(Venta).filter(
+            _cliente_contado_legacy_filter(),
             Venta.estado.in_(['pendiente', 'parcial']),
             Cliente.activo == True
         ).distinct().all()
@@ -517,7 +587,7 @@ def lista_clientes():
     
     search = request.args.get('search', '')
     
-    query = Cliente.query
+    query = Cliente.query.filter(_cliente_contado_legacy_filter())
     
     if search:
         query = query.filter(
@@ -567,6 +637,10 @@ def crear_cliente():
             return redirect(url_for('ventas.nuevo_cliente'))
         
         if numero_identificacion:
+            identificacion_upper = numero_identificacion.upper()
+            if identificacion_upper in {'CONTADO', SYSTEM_CASH_CLIENT_DOC}:
+                flash('La identificacion CONTADO esta reservada por el sistema', 'danger')
+                return redirect(url_for('ventas.nuevo_cliente'))
             cliente_existente = Cliente.query.filter_by(
                 numero_identificacion=numero_identificacion
             ).first()
@@ -620,6 +694,12 @@ def api_crear_cliente():
             return jsonify({'success': False, 'error': 'El límite de crédito no puede ser negativo'}), 400
 
         if numero_identificacion:
+            identificacion_upper = numero_identificacion.upper()
+            if identificacion_upper in {'CONTADO', SYSTEM_CASH_CLIENT_DOC}:
+                return jsonify({
+                    'success': False,
+                    'error': 'La identificacion CONTADO esta reservada por el sistema'
+                }), 400
             cliente_existente = Cliente.query.filter_by(
                 numero_identificacion=numero_identificacion
             ).first()
@@ -908,6 +988,7 @@ def api_buscar_clientes():
     search_pattern = f'%{search}%'
     
     clientes = Cliente.query.filter(
+        _cliente_contado_legacy_filter(),
         Cliente.activo == True,
         or_(
             Cliente.nombre.ilike(search_pattern),
