@@ -148,6 +148,12 @@
                                        class="btn btn-sm btn-success" title="Vender Gallinas">
                                         <i class="fas fa-dollar-sign"></i>
                                     </a>
+                                    {% if item.puede_editar %}
+                                    <a href="{{ url_for('gallinas.editar_lote', lote_id=item.lote.id) }}"
+                                       class="btn btn-sm btn-primary" title="Editar Lote (sin producción)">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    {% endif %}
                                 </div>
                             </td>
                         </tr>

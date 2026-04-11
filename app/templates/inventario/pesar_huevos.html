@@ -173,19 +173,10 @@
                 <div class="card-body">
                     {% if lote.estado == 'EN_PROCESO' and lote.pesa_id %}
                     <form id="pesajeManualForm" class="row g-3">
-                        <div class="col-md-4">
+                        <div class="col-md-8">
                             <label for="peso" class="form-label">Peso del Huevo (gramos)</label>
                             <input type="number" class="form-control" id="peso" step="0.1" 
                                    min="0" max="200" placeholder="65.5" required>
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label">Estado del Huevo</label>
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="huevoRoto">
-                                <label class="form-check-label text-danger" for="huevoRoto">
-                                    <i class="fas fa-exclamation-triangle me-1"></i>Huevo Roto
-                                </label>
-                            </div>
                         </div>
                         <div class="col-md-4 d-flex align-items-end">
                             <button type="submit" class="btn btn-primary w-100">
@@ -340,6 +331,8 @@
                                     <td>
                                         {% if huevo.categoria %}
                                             <span class="badge bg-info">{{ huevo.categoria.nombre }}</span>
+                                        {% elif huevo.roto %}
+                                            <span class="badge bg-secondary">No disponible</span>
                                         {% else %}
                                             <span class="badge bg-secondary">Sin categoría</span>
                                         {% endif %}
@@ -352,10 +345,21 @@
                                         {% endif %}
                                     </td>
                                     <td>
-                                        {% if not huevo.roto and lote.estado == 'EN_PROCESO' %}
-                                        <button class="btn btn-sm btn-danger" 
+                                        {% if lote.estado == 'EN_PROCESO' %}
+                                        <button class="btn btn-sm btn-outline-primary me-1"
+                                                onclick="editarHuevo({{ huevo.id }}, {{ huevo.peso or 0 }}, {{ 'true' if huevo.roto else 'false' }})"
+                                                title="Editar huevo">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        {% if not huevo.roto %}
+                                        <button class="btn btn-sm btn-danger me-1"
                                                 onclick="marcarRoto({{ huevo.id }})" title="Marcar como roto">
                                             <i class="fas fa-times"></i>
+                                        </button>
+                                        {% endif %}
+                                        <button class="btn btn-sm btn-outline-danger"
+                                                onclick="eliminarHuevo({{ huevo.id }})" title="Eliminar huevo">
+                                            <i class="fas fa-trash"></i>
                                         </button>
                                         {% endif %}
                                     </td>
@@ -371,6 +375,37 @@
                     </div>
                     {% endif %}
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="huevoRotoModal" tabindex="-1" aria-labelledby="huevoRotoModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="huevoRotoModalLabel">
+                    <i class="fas fa-heartbeat text-danger me-2"></i>Agregar Huevo Roto
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+                <label for="categoriaHuevoRoto" class="form-label">Categoría (opcional)</label>
+                <select class="form-select" id="categoriaHuevoRoto">
+                    <option value="">No disponible</option>
+                    {% for categoria in categorias %}
+                    <option value="{{ categoria.id }}">{{ categoria.nombre }}</option>
+                    {% endfor %}
+                </select>
+                <small class="form-text text-muted">
+                    Este huevo se registrará como roto y no sumará inventario ni ventas.
+                </small>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-danger" id="confirmarHuevoRotoBtn">
+                    <i class="fas fa-save me-2"></i>Guardar Huevo Roto
+                </button>
             </div>
         </div>
     </div>
@@ -398,6 +433,7 @@
 let ultimoHuevoId = {{ huevos[-1].id if huevos else 0 }};
 let pollInFlight = false;
 let categoriaHideTimer = null;
+let huevoRotoModal = null;
 
 function aplicarEstadisticas(stats) {
     if (!stats) {
@@ -471,9 +507,8 @@ if (pesajeManualForm) {
         e.preventDefault();
 
         const peso = document.getElementById('peso').value;
-        const roto = document.getElementById('huevoRoto').checked;
 
-        if (!roto && (!peso || peso <= 0)) {
+        if (!peso || peso <= 0) {
             alert('Por favor ingresa un peso válido');
             return;
         }
@@ -486,7 +521,7 @@ if (pesajeManualForm) {
             },
             body: JSON.stringify({
                 peso: parseFloat(peso || 0),
-                roto: roto
+                roto: false
             })
         })
         .then(response => response.json())
@@ -499,7 +534,6 @@ if (pesajeManualForm) {
                 aplicarEstadisticas(data.stats);
 
                 document.getElementById('peso').value = '';
-                document.getElementById('huevoRoto').checked = false;
                 document.getElementById('peso').focus();
             } else {
                 alert('Error: ' + (data.message || 'No se pudo agregar el huevo'));
@@ -513,35 +547,15 @@ if (pesajeManualForm) {
 }
 
 function agregarHuevoRoto() {
-    if (confirm('¿Agregar un huevo roto sin peso?')) {
-        fetch(`/inventario/lotes/{{ lote.id }}/pesar/manual`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': '{{ csrf_token() }}'
-            },
-            body: JSON.stringify({
-                peso: 0,
-                roto: true
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                if (data.huevo && data.huevo.id) {
-                    ultimoHuevoId = data.huevo.id;
-                }
-                mostrarCategoria(data.huevo);
-                aplicarEstadisticas(data.stats);
-            } else {
-                alert('Error: ' + (data.message || 'No se pudo agregar el huevo roto'));
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Error al procesar el huevo roto');
-        });
+    const categoriaSelect = document.getElementById('categoriaHuevoRoto');
+    if (categoriaSelect) {
+        categoriaSelect.value = '';
     }
+    if (!huevoRotoModal) {
+        const modalElement = document.getElementById('huevoRotoModal');
+        huevoRotoModal = new bootstrap.Modal(modalElement);
+    }
+    huevoRotoModal.show();
 }
 
 function marcarRoto(huevoId) {
@@ -562,6 +576,60 @@ function marcarRoto(huevoId) {
             }
         });
     }
+}
+
+function editarHuevo(huevoId, pesoActual, esRoto) {
+    const valorInicial = Number(pesoActual || 0).toFixed(1);
+    const nuevoPesoRaw = prompt('Nuevo peso del huevo (gramos):', valorInicial);
+    if (nuevoPesoRaw === null) return;
+
+    const nuevoPeso = parseFloat(String(nuevoPesoRaw).replace(',', '.'));
+    if (isNaN(nuevoPeso) || (!esRoto && nuevoPeso <= 0)) {
+        alert('Ingresa un peso valido');
+        return;
+    }
+
+    fetch(`/inventario/huevos/${huevoId}/editar`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({
+            peso: nuevoPeso,
+            roto: esRoto
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error: ' + (data.message || 'No se pudo editar el huevo'));
+        }
+    })
+    .catch(() => alert('Error al editar el huevo'));
+}
+
+function eliminarHuevo(huevoId) {
+    if (!confirm('¿Eliminar este huevo del historial?')) return;
+
+    fetch(`/inventario/huevos/${huevoId}/eliminar`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error: ' + (data.message || 'No se pudo eliminar el huevo'));
+        }
+    })
+    .catch(() => alert('Error al eliminar el huevo'));
 }
 
 function completarLote(loteId) {
@@ -587,6 +655,46 @@ document.addEventListener('DOMContentLoaded', function() {
     const pesoInput = document.getElementById('peso');
     if (pesoInput) {
         pesoInput.focus();
+    }
+
+    const confirmarHuevoRotoBtn = document.getElementById('confirmarHuevoRotoBtn');
+    if (confirmarHuevoRotoBtn) {
+        confirmarHuevoRotoBtn.addEventListener('click', function() {
+            const categoriaValue = document.getElementById('categoriaHuevoRoto').value;
+            const categoriaId = categoriaValue ? parseInt(categoriaValue, 10) : null;
+
+            fetch(`/inventario/lotes/{{ lote.id }}/pesar/manual`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({
+                    peso: 0,
+                    roto: true,
+                    categoria_id: Number.isInteger(categoriaId) ? categoriaId : null
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    if (data.huevo && data.huevo.id) {
+                        ultimoHuevoId = data.huevo.id;
+                    }
+                    mostrarCategoria(data.huevo);
+                    aplicarEstadisticas(data.stats);
+                    if (huevoRotoModal) {
+                        huevoRotoModal.hide();
+                    }
+                } else {
+                    alert('Error: ' + (data.message || 'No se pudo agregar el huevo roto'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error al procesar el huevo roto');
+            });
+        });
     }
 
     const archivoInput = document.getElementById('archivo_txt');
@@ -627,6 +735,8 @@ setInterval(function() {
 }, 250);
 </script>
 {% endblock %}
+
+
 
 
 

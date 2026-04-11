@@ -1,6 +1,6 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 
-{% block title %}Nuevo Lote de Gallinas{% endblock %}
+{% block title %}{{ 'Editar Lote de Gallinas' if modo_edicion else 'Nuevo Lote de Gallinas' }}{% endblock %}
 
 {% block content %}
 <div class="container mt-4">
@@ -8,60 +8,49 @@
         <div class="col-md-8">
             <div class="card">
                 <div class="card-header">
-                    <h4 class="mb-0"><i class="fas fa-plus"></i> Nuevo Lote de Gallinas</h4>
+                    <h4 class="mb-0">
+                        <i class="fas {{ 'fa-edit' if modo_edicion else 'fa-plus' }}"></i>
+                        {{ 'Editar Lote de Gallinas' if modo_edicion else 'Nuevo Lote de Gallinas' }}
+                    </h4>
                 </div>
                 <div class="card-body">
-                    <form method="POST" action="{{ url_for('gallinas.nuevo_lote') }}">
+                    <form method="POST" action="{{ url_for('gallinas.editar_lote', lote_id=lote.id) if modo_edicion else url_for('gallinas.nuevo_lote') }}">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label for="numero_lote" class="form-label">Número de Lote *</label>
-                                <input type="text" class="form-control" id="numero_lote" name="numero_lote" 
-                                       placeholder="Ej: LOTE-2024-001" required>
+                                <input type="text" class="form-control" id="numero_lote" name="numero_lote"
+                                       placeholder="Ej: LOTE-2024-001" value="{{ lote.numero_lote if lote else '' }}" required>
                                 <small class="form-text text-muted">Identificador único del lote</small>
                             </div>
-                            
+
                             <div class="col-md-6 mb-3">
                                 <label for="cantidad_inicial" class="form-label">Cantidad de Gallinas *</label>
-                                <input type="number" class="form-control" id="cantidad_inicial" name="cantidad_inicial" 
-                                       min="1" placeholder="Ej: 500" required>
+                                <input type="number" class="form-control" id="cantidad_inicial" name="cantidad_inicial"
+                                       min="1" placeholder="Ej: 500" value="{{ lote.cantidad_inicial if lote else '' }}" required>
                             </div>
                         </div>
 
                         <div class="row">
-                            <!-- <div class="col-md-6 mb-3">
-                                <label for="raza" class="form-label">Raza *</label>
-                                <select class="form-select" id="raza" name="raza" required>
-                                    <option value="">Seleccionar raza...</option>
-                                    <option value="Isa Brown">Isa Brown</option>
-                                    <option value="Lohmann Brown">Lohmann Brown</option>
-                                    <option value="Leghorn">Leghorn</option>
-                                    <option value="Rhode Island Red">Rhode Island Red</option>
-                                    <option value="Plymouth Rock">Plymouth Rock</option>
-                                    <option value="Sussex">Sussex</option>
-                                    <option value="Otra">Otra</option>
-                                </select>
-                            </div> -->
-                            
                             <div class="col-md-6 mb-3">
                                 <label for="fecha_ingreso" class="form-label">Fecha de Ingreso *</label>
-                                <input type="date" class="form-control" id="fecha_ingreso" name="fecha_ingreso" 
-                                       value="{{ today }}" required>
+                                <input type="date" class="form-control" id="fecha_ingreso" name="fecha_ingreso"
+                                       value="{{ lote.fecha_ingreso.strftime('%Y-%m-%d') if lote else today }}" required>
                             </div>
                         </div>
 
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label for="edad_semanas_ingreso" class="form-label">Edad al Ingreso (semanas) *</label>
-                                <input type="number" class="form-control" id="edad_semanas_ingreso" name="edad_semanas_ingreso" 
-                                       min="0" max="100" placeholder="Ej: 18" required>
+                                <input type="number" class="form-control" id="edad_semanas_ingreso" name="edad_semanas_ingreso"
+                                       min="0" max="100" placeholder="Ej: 18" value="{{ lote.edad_semanas_ingreso if lote else '' }}" required>
                                 <small class="form-text text-muted">Edad de las gallinas al momento del ingreso</small>
                             </div>
-                            
+
                             <div class="col-md-6 mb-3">
                                 <label for="ubicacion" class="form-label">Ubicación</label>
-                                <input type="text" class="form-control" id="ubicacion" name="ubicacion" 
-                                       placeholder="Ej: Galpón 1, Zona A">
+                                <input type="text" class="form-control" id="ubicacion" name="ubicacion"
+                                       placeholder="Ej: Galpón 1, Zona A" value="{{ lote.ubicacion if lote else '' }}">
                             </div>
                         </div>
 
@@ -70,16 +59,16 @@
                                 <label for="costo_unitario" class="form-label">Valor descarte x gallina</label>
                                 <div class="input-group">
                                     <span class="input-group-text">$</span>
-                                    <input type="number" class="form-control" id="costo_unitario" name="costo_unitario" 
-                                           min="0" step="0.01" placeholder="0.00">
+                                    <input type="number" class="form-control" id="costo_unitario" name="costo_unitario"
+                                           min="0" step="0.01" placeholder="0.00" value="{{ lote.costo_unitario if lote else '' }}">
                                 </div>
                             </div>
-                            
+
                             <div class="col-md-6 mb-3">
                                 <label for="costo_total" class="form-label">Costo Total de Descarte</label>
                                 <div class="input-group">
                                     <span class="input-group-text">$</span>
-                                    <input type="text" class="form-control" id="costo_total" 
+                                    <input type="text" class="form-control" id="costo_total"
                                            placeholder="0.00" readonly>
                                 </div>
                                 <small class="form-text text-muted">Calculado automáticamente</small>
@@ -88,14 +77,18 @@
 
                         <div class="mb-3">
                             <label for="observaciones" class="form-label">Observaciones</label>
-                            <textarea class="form-control" id="observaciones" name="observaciones" 
-                                      rows="3" placeholder="Información adicional sobre el lote..."></textarea>
+                            <textarea class="form-control" id="observaciones" name="observaciones"
+                                      rows="3" placeholder="Información adicional sobre el lote...">{{ lote.observaciones if lote else '' }}</textarea>
                         </div>
 
                         <div class="alert alert-info">
-                            <i class="fas fa-info-circle"></i> 
-                            <strong>Información:</strong> El lote se creará con un ciclo de producción máximo de 80 semanas. 
-                            El sistema calculará automáticamente las semanas restantes y generará alertas cuando se acerque el final del ciclo.
+                            <i class="fas fa-info-circle"></i>
+                            <strong>Información:</strong>
+                            {% if modo_edicion %}
+                            Solo se permite editar lotes que aún no tengan producción registrada.
+                            {% else %}
+                            El lote se creará con un ciclo de producción máximo de 80 semanas.
+                            {% endif %}
                         </div>
 
                         <div class="d-flex justify-content-between">
@@ -103,7 +96,7 @@
                                 <i class="fas fa-arrow-left"></i> Cancelar
                             </a>
                             <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-save"></i> Crear Lote
+                                <i class="fas fa-save"></i> {{ 'Actualizar Lote' if modo_edicion else 'Crear Lote' }}
                             </button>
                         </div>
                     </form>
@@ -129,6 +122,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     cantidadInput.addEventListener('input', calcularCostoTotal);
     costoUnitarioInput.addEventListener('input', calcularCostoTotal);
+    calcularCostoTotal();
 });
 </script>
 {% endblock %}

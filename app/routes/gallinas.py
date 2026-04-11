@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
+﻿from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
 from app.models import db, LoteGallinas, RegistroMortalidad, VentaGallinas, RegistroSanitario, LoteRecoleccion, SeparacionGallinas
 from app.utils.excel import create_excel_response, create_excel_multisheet_response
@@ -10,24 +10,33 @@ import os
 
 gallinas_bp = Blueprint('gallinas', __name__, url_prefix='/gallinas')
 
-# Configuración de imágenes
+# ConfiguraciÃ³n de imÃ¡genes
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 MAX_IMAGE_SIZE = 5 * 1024 * 1024  # 5 MB
-MAX_IMAGE_DIMENSION = 1920  # Ancho/alto máximo en píxeles
+MAX_IMAGE_DIMENSION = 1920  # Ancho/alto mÃ¡ximo en pÃ­xeles
+
+def _lote_tiene_produccion(lote):
+    """Determina si un lote ya tiene producción iniciada o registros de recolección."""
+    if lote.fecha_inicio_produccion is not None:
+        return True
+    existe_recoleccion = db.session.query(LoteRecoleccion.id).filter(
+        LoteRecoleccion.lote_gallinas_id == lote.id
+    ).first()
+    return existe_recoleccion is not None
 
 def allowed_file(filename):
-    """Verifica si el archivo tiene una extensión permitida"""
+    """Verifica si el archivo tiene una extensiÃ³n permitida"""
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def compress_image(input_path, output_path, max_dimension=MAX_IMAGE_DIMENSION, quality=85):
     """
-    Comprime una imagen reduciendo su tamaño y dimensiones
+    Comprime una imagen reduciendo su tamaÃ±o y dimensiones
     
     Args:
         input_path: Ruta de la imagen original
-        output_path: Ruta donde se guardará la imagen comprimida
-        max_dimension: Dimensión máxima (ancho o alto) en píxeles
-        quality: Calidad de compresión JPEG (1-100)
+        output_path: Ruta donde se guardarÃ¡ la imagen comprimida
+        max_dimension: DimensiÃ³n mÃ¡xima (ancho o alto) en pÃ­xeles
+        quality: Calidad de compresiÃ³n JPEG (1-100)
     """
     try:
         with Image.open(input_path) as img:
@@ -51,7 +60,7 @@ def compress_image(input_path, output_path, max_dimension=MAX_IMAGE_DIMENSION, q
                 
                 img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
             
-            # Guardar con compresión
+            # Guardar con compresiÃ³n
             img.save(output_path, 'JPEG', quality=quality, optimize=True)
             return True
     except Exception as e:
@@ -61,15 +70,15 @@ def compress_image(input_path, output_path, max_dimension=MAX_IMAGE_DIMENSION, q
 @gallinas_bp.route('/dashboard')
 @login_required
 def dashboard():
-    """Dashboard principal de gestión de gallinas"""
-    # Obtener todos los lotes con su información de alertas
+    """Dashboard principal de gestiÃ³n de gallinas"""
+    # Obtener todos los lotes con su informaciÃ³n de alertas
     lotes = LoteGallinas.query.filter_by(estado='Activo').order_by(desc(LoteGallinas.fecha_ingreso)).all()
     
-    # Agregar información de alertas a cada lote
+    # Agregar informaciÃ³n de alertas a cada lote
     lotes_info = []
     for lote in lotes:
         edad_actual = lote.get_edad_actual_semanas()  # Edad total del lote
-        semanas_produccion = lote.get_semanas_produccion()  # Semanas desde que empezó a producir
+        semanas_produccion = lote.get_semanas_produccion()  # Semanas desde que empezÃ³ a producir
         semanas_restantes = lote.get_semanas_restantes()
         nivel_alerta = lote.get_alerta_nivel()
         mortalidad_total = lote.get_mortalidad_total()
@@ -82,10 +91,11 @@ def dashboard():
             'semanas_restantes': semanas_restantes,
             'nivel_alerta': nivel_alerta,
             'mortalidad_total': mortalidad_total,
-            'tasa_mortalidad': round(tasa_mortalidad, 2)
+            'tasa_mortalidad': round(tasa_mortalidad, 2),
+            'puede_editar': not _lote_tiene_produccion(lote)
         })
     
-    # Estadísticas generales
+    # EstadÃ­sticas generales
     total_gallinas = sum([lote.cantidad_actual for lote in lotes])
     lotes_criticos = len([l for l in lotes_info if l['nivel_alerta'] == 'CRITICO'])
     lotes_altos = len([l for l in lotes_info if l['nivel_alerta'] == 'ALTO'])
@@ -143,7 +153,65 @@ def nuevo_lote():
             flash(f'Error al crear el lote: {str(e)}', 'error')
     
     today = date.today().strftime('%Y-%m-%d')
-    return render_template('gallinas/nuevo_lote.html', today=today)
+    return render_template('gallinas/nuevo_lote.html', today=today, modo_edicion=False, lote=None)
+
+@gallinas_bp.route('/editar_lote/<int:lote_id>', methods=['GET', 'POST'])
+@login_required
+def editar_lote(lote_id):
+    """Editar un lote de gallinas solo si aún no tiene producción."""
+    lote = LoteGallinas.query.get_or_404(lote_id)
+
+    if _lote_tiene_produccion(lote):
+        flash('Este lote no se puede editar porque ya tiene producción registrada.', 'error')
+        return redirect(url_for('gallinas.detalle_lote', lote_id=lote.id))
+
+    if request.method == 'POST':
+        try:
+            numero_lote = (request.form.get('numero_lote') or '').strip()
+            cantidad_inicial = int(request.form.get('cantidad_inicial'))
+            fecha_ingreso = datetime.strptime(request.form.get('fecha_ingreso'), '%Y-%m-%d').date()
+            edad_semanas_ingreso = int(request.form.get('edad_semanas_ingreso'))
+            ubicacion = request.form.get('ubicacion', '')
+            costo_unitario = float(request.form.get('costo_unitario', 0) or 0)
+            observaciones = request.form.get('observaciones', '')
+
+            lote_con_mismo_numero = LoteGallinas.query.filter(
+                LoteGallinas.numero_lote == numero_lote,
+                LoteGallinas.id != lote.id
+            ).first()
+            if lote_con_mismo_numero:
+                flash('Ya existe otro lote con ese número.', 'error')
+                return redirect(url_for('gallinas.editar_lote', lote_id=lote.id))
+
+            if cantidad_inicial < lote.cantidad_actual:
+                flash(
+                    f'La cantidad inicial no puede ser menor a la cantidad actual ({lote.cantidad_actual}).',
+                    'error'
+                )
+                return redirect(url_for('gallinas.editar_lote', lote_id=lote.id))
+
+            lote.numero_lote = numero_lote
+            lote.cantidad_inicial = cantidad_inicial
+            lote.fecha_ingreso = fecha_ingreso
+            lote.edad_semanas_ingreso = edad_semanas_ingreso
+            lote.ubicacion = ubicacion
+            lote.costo_unitario = costo_unitario
+            lote.costo_total = cantidad_inicial * costo_unitario
+            lote.observaciones = observaciones
+
+            db.session.commit()
+            flash(f'Lote {lote.numero_lote} actualizado correctamente.', 'success')
+            return redirect(url_for('gallinas.detalle_lote', lote_id=lote.id))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error al actualizar el lote: {str(e)}', 'error')
+
+    return render_template(
+        'gallinas/nuevo_lote.html',
+        today=lote.fecha_ingreso.strftime('%Y-%m-%d'),
+        modo_edicion=True,
+        lote=lote
+    )
 
 @gallinas_bp.route('/detalle/<int:lote_id>')
 @login_required
@@ -151,7 +219,7 @@ def detalle_lote(lote_id):
     """Ver detalles de un lote de gallinas"""
     lote = LoteGallinas.query.get_or_404(lote_id)
     
-    # Obtener información de producción semanal
+    # Obtener informaciÃ³n de producciÃ³n semanal
     recolecciones = db.session.query(
         LoteRecoleccion.semana_produccion,
         func.count(LoteRecoleccion.id).label('recolecciones'),
@@ -176,14 +244,14 @@ def detalle_lote(lote_id):
     ventas = VentaGallinas.query.filter_by(lote_gallinas_id=lote_id)\
         .order_by(desc(VentaGallinas.fecha_venta)).all()
     
-    # Calcular estadísticas
+    # Calcular estadÃ­sticas
     semanas_produccion = lote.get_semanas_produccion()
     semanas_restantes = lote.get_semanas_restantes()
     nivel_alerta = lote.get_alerta_nivel()
     mortalidad_total = lote.get_mortalidad_total()
     tasa_mortalidad = (mortalidad_total / lote.cantidad_inicial * 100) if lote.cantidad_inicial > 0 else 0
     
-    # Calcular producción promedio por semana
+    # Calcular producciÃ³n promedio por semana
     total_huevos = sum([r.total_huevos or 0 for r in recolecciones])
     produccion_promedio = total_huevos / semanas_produccion if semanas_produccion > 0 else 0
     
@@ -199,6 +267,7 @@ def detalle_lote(lote_id):
     
     return render_template('gallinas/detalle_lote.html',
                          lote=lote,
+                         puede_editar=not _lote_tiene_produccion(lote),
                          semanas_produccion=semanas_produccion,
                          semanas_restantes=semanas_restantes,
                          nivel_alerta=nivel_alerta,
@@ -229,7 +298,7 @@ def registrar_mortalidad(lote_id):
             fecha_registro = datetime.strptime(request.form.get('fecha_registro'), '%Y-%m-%d').date()
             observaciones = request.form.get('observaciones', '')
             
-            # Campos de separación de gallinas
+            # Campos de separaciÃ³n de gallinas
             gallinas_separadas = int(request.form.get('gallinas_separadas', 0))
             ubicacion_separacion = request.form.get('ubicacion_separacion', '')
             
@@ -239,26 +308,26 @@ def registrar_mortalidad(lote_id):
                 flash('La cantidad total (muertas + separadas) no puede ser mayor a la cantidad actual de gallinas', 'error')
                 return redirect(url_for('gallinas.registrar_mortalidad', lote_id=lote_id))
             
-            # Manejo de imagen con validación y compresión
+            # Manejo de imagen con validaciÃ³n y compresiÃ³n
             imagen_filename = None
             if 'imagen' in request.files:
                 file = request.files['imagen']
                 if file and file.filename:
-                    # Validar extensión
+                    # Validar extensiÃ³n
                     if not allowed_file(file.filename):
                         flash('Tipo de archivo no permitido. Use: jpg, jpeg, png, gif, webp', 'error')
                         return redirect(url_for('gallinas.registrar_mortalidad', lote_id=lote_id))
                     
-                    # Validar tamaño (5 MB máximo)
+                    # Validar tamaÃ±o (5 MB mÃ¡ximo)
                     file.seek(0, os.SEEK_END)
                     file_size = file.tell()
                     file.seek(0)
                     
                     if file_size > MAX_IMAGE_SIZE:
-                        flash(f'La imagen es muy grande. Tamaño máximo: {MAX_IMAGE_SIZE // (1024*1024)} MB', 'error')
+                        flash(f'La imagen es muy grande. TamaÃ±o mÃ¡ximo: {MAX_IMAGE_SIZE // (1024*1024)} MB', 'error')
                         return redirect(url_for('gallinas.registrar_mortalidad', lote_id=lote_id))
                     
-                    # Generar nombre único con extensión .jpg (siempre)
+                    # Generar nombre Ãºnico con extensiÃ³n .jpg (siempre)
                     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
                     imagen_filename = f'mortalidad_{lote_id}_{timestamp}.jpg'
                     
@@ -278,9 +347,9 @@ def registrar_mortalidad(lote_id):
                             if os.path.exists(temp_path):
                                 os.remove(temp_path)
                         else:
-                            # Si falla la compresión, usar la imagen original
+                            # Si falla la compresiÃ³n, usar la imagen original
                             os.rename(temp_path, final_path)
-                            flash('La imagen se guardó sin comprimir', 'warning')
+                            flash('La imagen se guardÃ³ sin comprimir', 'warning')
                     except Exception as e:
                         flash(f'Error al guardar la imagen: {str(e)}', 'error')
                         if os.path.exists(temp_path):
@@ -393,30 +462,30 @@ def registro_sanitario(lote_id):
                 fecha_proxima = None
             observaciones = request.form.get('observaciones', '')
             
-            # Campos de separación de gallinas
+            # Campos de separaciÃ³n de gallinas
             gallinas_separadas = int(request.form.get('gallinas_separadas', 0))
             ubicacion_separacion = request.form.get('ubicacion_separacion', '')
             
-            # Manejo de imagen con validación y compresión
+            # Manejo de imagen con validaciÃ³n y compresiÃ³n
             imagen_filename = None
             if 'imagen' in request.files:
                 file = request.files['imagen']
                 if file and file.filename:
-                    # Validar extensión
+                    # Validar extensiÃ³n
                     if not allowed_file(file.filename):
                         flash('Tipo de archivo no permitido. Use: jpg, jpeg, png, gif, webp', 'error')
                         return redirect(url_for('gallinas.registro_sanitario', lote_id=lote_id))
                     
-                    # Validar tamaño (5 MB máximo)
+                    # Validar tamaÃ±o (5 MB mÃ¡ximo)
                     file.seek(0, os.SEEK_END)
                     file_size = file.tell()
                     file.seek(0)
                     
                     if file_size > MAX_IMAGE_SIZE:
-                        flash(f'La imagen es muy grande. Tamaño máximo: {MAX_IMAGE_SIZE // (1024*1024)} MB', 'error')
+                        flash(f'La imagen es muy grande. TamaÃ±o mÃ¡ximo: {MAX_IMAGE_SIZE // (1024*1024)} MB', 'error')
                         return redirect(url_for('gallinas.registro_sanitario', lote_id=lote_id))
                     
-                    # Generar nombre único con extensión .jpg (siempre)
+                    # Generar nombre Ãºnico con extensiÃ³n .jpg (siempre)
                     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
                     imagen_filename = f'sanitario_{lote_id}_{timestamp}.jpg'
                     
@@ -436,9 +505,9 @@ def registro_sanitario(lote_id):
                             if os.path.exists(temp_path):
                                 os.remove(temp_path)
                         else:
-                            # Si falla la compresión, usar la imagen original
+                            # Si falla la compresiÃ³n, usar la imagen original
                             os.rename(temp_path, final_path)
-                            flash('La imagen se guardó sin comprimir', 'warning')
+                            flash('La imagen se guardÃ³ sin comprimir', 'warning')
                     except Exception as e:
                         flash(f'Error al guardar la imagen: {str(e)}', 'error')
                         if os.path.exists(temp_path):
@@ -479,10 +548,10 @@ def registro_sanitario(lote_id):
 @gallinas_bp.route('/alertas')
 @login_required
 def alertas():
-    """Ver lotes con alertas críticas y altas"""
+    """Ver lotes con alertas crÃ­ticas y altas"""
     lotes = LoteGallinas.query.filter_by(estado='Activo').all()
     
-    # Filtrar lotes con alertas críticas o altas
+    # Filtrar lotes con alertas crÃ­ticas o altas
     lotes_alertas = []
     for lote in lotes:
         nivel_alerta = lote.get_alerta_nivel()
@@ -638,7 +707,7 @@ def export_excel_gallinas():
 @gallinas_bp.route('/api/lotes_activos')
 @login_required
 def api_lotes_activos():
-    """API para obtener lotes activos (para usar en formulario de recolección)"""
+    """API para obtener lotes activos (para usar en formulario de recolecciÃ³n)"""
     lotes = LoteGallinas.query.filter_by(estado='Activo').order_by(desc(LoteGallinas.fecha_ingreso)).all()
     
     lotes_data = []
@@ -680,7 +749,7 @@ def finalizar_lote(lote_id):
 @gallinas_bp.route('/separar_gallinas/<int:lote_id>', methods=['GET', 'POST'])
 @login_required
 def separar_gallinas(lote_id):
-    """Registrar separación de gallinas"""
+    """Registrar separaciÃ³n de gallinas"""
     lote = LoteGallinas.query.get_or_404(lote_id)
     
     if request.method == 'POST':
@@ -704,29 +773,29 @@ def separar_gallinas(lote_id):
                 try:
                     peso_decimal = float(peso_promedio)
                 except ValueError:
-                    flash('Peso promedio inválido', 'error')
+                    flash('Peso promedio invÃ¡lido', 'error')
                     return redirect(url_for('gallinas.separar_gallinas', lote_id=lote_id))
             
-            # Manejo de imagen con validación y compresión
+            # Manejo de imagen con validaciÃ³n y compresiÃ³n
             imagen_filename = None
             if 'imagen' in request.files:
                 file = request.files['imagen']
                 if file and file.filename:
-                    # Validar extensión
+                    # Validar extensiÃ³n
                     if not allowed_file(file.filename):
                         flash('Tipo de archivo no permitido. Use: jpg, jpeg, png, gif, webp', 'error')
                         return redirect(url_for('gallinas.separar_gallinas', lote_id=lote_id))
                     
-                    # Validar tamaño (5 MB máximo)
+                    # Validar tamaÃ±o (5 MB mÃ¡ximo)
                     file.seek(0, os.SEEK_END)
                     file_size = file.tell()
                     file.seek(0)
                     
                     if file_size > MAX_IMAGE_SIZE:
-                        flash(f'La imagen es muy grande. Tamaño máximo: {MAX_IMAGE_SIZE // (1024*1024)} MB', 'error')
+                        flash(f'La imagen es muy grande. TamaÃ±o mÃ¡ximo: {MAX_IMAGE_SIZE // (1024*1024)} MB', 'error')
                         return redirect(url_for('gallinas.separar_gallinas', lote_id=lote_id))
                     
-                    # Generar nombre único con extensión .jpg (siempre)
+                    # Generar nombre Ãºnico con extensiÃ³n .jpg (siempre)
                     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
                     imagen_filename = f'separacion_{lote_id}_{timestamp}.jpg'
                     
@@ -746,16 +815,16 @@ def separar_gallinas(lote_id):
                             if os.path.exists(temp_path):
                                 os.remove(temp_path)
                         else:
-                            # Si falla la compresión, usar la imagen original
+                            # Si falla la compresiÃ³n, usar la imagen original
                             os.rename(temp_path, final_path)
-                            flash('La imagen se guardó sin comprimir', 'warning')
+                            flash('La imagen se guardÃ³ sin comprimir', 'warning')
                     except Exception as e:
                         flash(f'Error al guardar la imagen: {str(e)}', 'error')
                         if os.path.exists(temp_path):
                             os.remove(temp_path)
                         imagen_filename = None
             
-            # Crear registro de separación
+            # Crear registro de separaciÃ³n
             separacion = SeparacionGallinas(
                 lote_gallinas_id=lote_id,
                 fecha_separacion=fecha_separacion,
@@ -773,12 +842,12 @@ def separar_gallinas(lote_id):
             db.session.add(separacion)
             db.session.commit()
             
-            flash(f'Separación registrada: {cantidad} gallinas separadas', 'success')
+            flash(f'SeparaciÃ³n registrada: {cantidad} gallinas separadas', 'success')
             return redirect(url_for('gallinas.detalle_lote', lote_id=lote_id))
             
         except Exception as e:
             db.session.rollback()
-            flash(f'Error al registrar separación: {str(e)}', 'error')
+            flash(f'Error al registrar separaciÃ³n: {str(e)}', 'error')
     
     return render_template('gallinas/separar_gallinas.html', lote=lote, datetime=datetime)
 
@@ -786,7 +855,7 @@ def separar_gallinas(lote_id):
 @gallinas_bp.route('/resolver_separacion/<int:separacion_id>', methods=['POST'])
 @login_required
 def resolver_separacion(separacion_id):
-    """Resolver una separación (recuperada, muerta, vendida)"""
+    """Resolver una separaciÃ³n (recuperada, muerta, vendida)"""
     separacion = SeparacionGallinas.query.get_or_404(separacion_id)
     lote = LoteGallinas.query.get_or_404(separacion.lote_gallinas_id)
     
@@ -795,23 +864,23 @@ def resolver_separacion(separacion_id):
         fecha_resolucion = datetime.strptime(request.form.get('fecha_resolucion'), '%Y-%m-%d').date()
         observaciones = request.form.get('observaciones_resolucion', '')
         
-        # Actualizar estado de la separación
+        # Actualizar estado de la separaciÃ³n
         separacion.estado = nuevo_estado
         separacion.fecha_resolucion = fecha_resolucion
         separacion.observaciones_resolucion = observaciones
         
-        # Si el estado es "Muerta", registrar automáticamente en mortalidad
+        # Si el estado es "Muerta", registrar automÃ¡ticamente en mortalidad
         if nuevo_estado == 'Muerta':
             # Crear registro de mortalidad
             registro_mortalidad = RegistroMortalidad(
                 lote_gallinas_id=separacion.lote_gallinas_id,
                 cantidad=separacion.cantidad,
-                causa=f"Muerte durante separación - {separacion.motivo}",
+                causa=f"Muerte durante separaciÃ³n - {separacion.motivo}",
                 fecha_registro=fecha_resolucion,
                 observaciones=f"Separadas el {separacion.fecha_separacion.strftime('%d/%m/%Y')} a las {separacion.hora_separacion.strftime('%H:%M')}. "
-                             f"Ubicación: {separacion.ubicacion}. "
+                             f"UbicaciÃ³n: {separacion.ubicacion}. "
                              f"Obs. inicial: {separacion.observaciones or 'N/A'}. "
-                             f"Obs. resolución: {observaciones or 'N/A'}",
+                             f"Obs. resoluciÃ³n: {observaciones or 'N/A'}",
                 gallinas_separadas=0,  # Ya no hay separadas, murieron
                 ubicacion_separacion=separacion.ubicacion,
                 imagen=separacion.imagen,  # Usar la misma imagen
@@ -822,21 +891,23 @@ def resolver_separacion(separacion_id):
             lote.cantidad_actual -= separacion.cantidad
             
             db.session.add(registro_mortalidad)
-            flash(f'Separación resuelta: {separacion.cantidad} gallinas registradas en mortalidad y restadas del lote', 'warning')
+            flash(f'SeparaciÃ³n resuelta: {separacion.cantidad} gallinas registradas en mortalidad y restadas del lote', 'warning')
         
         elif nuevo_estado == 'Vendida':
-            # Si se vendieron, también restar del lote
+            # Si se vendieron, tambiÃ©n restar del lote
             lote.cantidad_actual -= separacion.cantidad
-            flash(f'Separación resuelta: {separacion.cantidad} gallinas vendidas y restadas del lote', 'success')
+            flash(f'SeparaciÃ³n resuelta: {separacion.cantidad} gallinas vendidas y restadas del lote', 'success')
         
         else:
             # Estado "Recuperada" - las gallinas vuelven al lote (no se resta nada)
-            flash(f'Separación resuelta: {separacion.cantidad} gallinas recuperadas y devueltas al lote', 'success')
+            flash(f'SeparaciÃ³n resuelta: {separacion.cantidad} gallinas recuperadas y devueltas al lote', 'success')
         
         db.session.commit()
         
     except Exception as e:
         db.session.rollback()
-        flash(f'Error al resolver separación: {str(e)}', 'error')
+        flash(f'Error al resolver separaciÃ³n: {str(e)}', 'error')
     
     return redirect(url_for('gallinas.detalle_lote', lote_id=separacion.lote_gallinas_id))
+
+

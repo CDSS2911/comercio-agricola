@@ -177,6 +177,11 @@
                         <a href="{{ url_for('gallinas.vender_gallinas', lote_id=lote.id) }}" class="btn btn-success">
                             <i class="fas fa-dollar-sign"></i> Vender Gallinas
                         </a>
+                        {% if puede_editar %}
+                        <a href="{{ url_for('gallinas.editar_lote', lote_id=lote.id) }}" class="btn btn-primary">
+                            <i class="fas fa-edit"></i> Editar Lote
+                        </a>
+                        {% endif %}
                         <!-- <a href="{{ url_for('gallinas.registro_sanitario', lote_id=lote.id) }}" class="btn btn-primary">
                             <i class="fas fa-syringe"></i> Registro Sanitario
                         </a> -->

@@ -124,6 +124,68 @@ def parse_checkbox(value):
     return str(value).lower() in {'1', 'true', 'on', 'yes'}
 
 
+def _build_gestion_context(estado_filter='', rol_filter='', buscar_filter=''):
+    """Construir contexto compartido para la vista de gestion de usuarios."""
+    query = User.query
+
+    if estado_filter == 'activo':
+        query = query.filter(User.is_active.is_(True))
+    elif estado_filter == 'inactivo':
+        query = query.filter(User.is_active.is_(False))
+
+    if rol_filter:
+        if rol_filter == 'sin_rol':
+            query = query.filter(~User.roles.any())
+        else:
+            query = query.filter(User.roles.any(Role.slug == rol_filter))
+
+    if buscar_filter:
+        search_term = f"%{buscar_filter}%"
+        query = query.filter(
+            or_(
+                User.first_name.ilike(search_term),
+                User.last_name.ilike(search_term),
+                User.username.ilike(search_term),
+                User.email.ilike(search_term),
+            )
+        )
+
+    usuarios = query.order_by(User.created_at.desc()).all()
+    roles_activos = Role.query.filter_by(active=True).order_by(Role.name.asc()).all()
+
+    stats = {
+        'total_usuarios': User.query.count(),
+        'usuarios_activos': User.query.filter(User.is_active.is_(True)).count(),
+        'administradores': User.query.filter(
+            or_(
+                User.roles.any(Role.slug == 'admin'),
+                User.roles.any(Role.slug == 'superadmin'),
+                User.is_admin.is_(True),
+            )
+        ).count(),
+        'nuevos_mes': User.query.filter(
+            extract('month', User.created_at) == datetime.now().month,
+            extract('year', User.created_at) == datetime.now().year,
+        ).count(),
+    }
+
+    return {
+        'usuarios': usuarios,
+        'stats': stats,
+        'roles': roles_activos,
+        'can_create': current_user.has_permission('users.create'),
+        'can_edit': current_user.has_permission('users.edit'),
+        'can_toggle': current_user.has_permission('users.toggle_active'),
+        'can_reset': current_user.has_permission('users.reset_password'),
+        'can_assign_roles': current_user.has_permission('users.assign_roles'),
+        'can_manage_roles': current_user.has_permission('roles.manage'),
+        'csrf_token': generate_csrf,
+        'estado_filter': estado_filter,
+        'rol_filter': rol_filter,
+        'buscar_filter': buscar_filter,
+    }
+
+
 def validar_password(password):
     """Validar que la contrasena cumple con los requisitos minimos."""
     if len(password) < 8:
@@ -255,62 +317,7 @@ def gestion():
     rol_filter = request.args.get('rol', '')
     buscar_filter = request.args.get('buscar', '')
 
-    query = User.query
-
-    if estado_filter == 'activo':
-        query = query.filter(User.is_active.is_(True))
-    elif estado_filter == 'inactivo':
-        query = query.filter(User.is_active.is_(False))
-
-    if rol_filter:
-        if rol_filter == 'sin_rol':
-            query = query.filter(~User.roles.any())
-        else:
-            query = query.filter(User.roles.any(Role.slug == rol_filter))
-
-    if buscar_filter:
-        search_term = f"%{buscar_filter}%"
-        query = query.filter(
-            or_(
-                User.first_name.ilike(search_term),
-                User.last_name.ilike(search_term),
-                User.username.ilike(search_term),
-                User.email.ilike(search_term),
-            )
-        )
-
-    usuarios = query.order_by(User.created_at.desc()).all()
-    roles_activos = Role.query.filter_by(active=True).order_by(Role.name.asc()).all()
-
-    stats = {
-        'total_usuarios': User.query.count(),
-        'usuarios_activos': User.query.filter(User.is_active.is_(True)).count(),
-        'administradores': User.query.filter(
-            or_(
-                User.roles.any(Role.slug == 'admin'),
-                User.roles.any(Role.slug == 'superadmin'),
-                User.is_admin.is_(True),
-            )
-        ).count(),
-        'nuevos_mes': User.query.filter(
-            extract('month', User.created_at) == datetime.now().month,
-            extract('year', User.created_at) == datetime.now().year,
-        ).count(),
-    }
-
-    return render_template(
-        'usuarios/gestion.html',
-        usuarios=usuarios,
-        stats=stats,
-        roles=roles_activos,
-        can_create=current_user.has_permission('users.create'),
-        can_edit=current_user.has_permission('users.edit'),
-        can_toggle=current_user.has_permission('users.toggle_active'),
-        can_reset=current_user.has_permission('users.reset_password'),
-        can_assign_roles=current_user.has_permission('users.assign_roles'),
-        can_manage_roles=current_user.has_permission('roles.manage'),
-        csrf_token=generate_csrf,
-    )
+    return render_template('usuarios/gestion.html', **_build_gestion_context(estado_filter, rol_filter, buscar_filter))
 
 
 @usuarios_bp.route('/gestion', methods=['POST'])
@@ -324,6 +331,11 @@ def gestionar_usuario():
         data = request.form
         user_id = data.get('id')
         es_edicion = bool(user_id)
+        form_data = data.to_dict(flat=True)
+        form_errors = {}
+
+        def add_error(field, message):
+            form_errors.setdefault(field, []).append(message)
 
         if not es_edicion and not current_user.has_permission('users.create'):
             flash('No tienes permisos para crear usuarios', 'error')
@@ -333,9 +345,11 @@ def gestionar_usuario():
         if not es_edicion:
             campos_requeridos.append('password')
 
-        if not all(data.get(campo) for campo in campos_requeridos):
-            flash('Todos los campos obligatorios deben ser completados', 'error')
-            return redirect(url_for('usuarios.gestion'))
+        for campo in campos_requeridos:
+            if not data.get(campo):
+                add_error(campo, 'Este campo es obligatorio')
+
+        usuario = None
 
         if es_edicion:
             usuario = User.query.get_or_404(user_id)
@@ -344,34 +358,28 @@ def gestionar_usuario():
                 User.id != user_id,
             ).first()
             if existing_user:
-                flash('El nombre de usuario ya esta en uso', 'error')
-                return redirect(url_for('usuarios.gestion'))
+                add_error('username', 'El nombre de usuario ya esta en uso')
 
             existing_email = User.query.filter(
                 User.email == data.get('email'),
                 User.id != user_id,
             ).first()
             if existing_email:
-                flash('El email ya esta registrado', 'error')
-                return redirect(url_for('usuarios.gestion'))
+                add_error('email', 'El email ya esta registrado')
         else:
             if User.query.filter_by(username=data.get('username')).first():
-                flash('El nombre de usuario ya esta en uso', 'error')
-                return redirect(url_for('usuarios.gestion'))
+                add_error('username', 'El nombre de usuario ya esta en uso')
 
             if User.query.filter_by(email=data.get('email')).first():
-                flash('El email ya esta registrado', 'error')
-                return redirect(url_for('usuarios.gestion'))
+                add_error('email', 'El email ya esta registrado')
 
             usuario = User()
 
         if data.get('password'):
             if not current_user.has_permission('users.reset_password'):
-                flash('No tienes permisos para asignar o cambiar contrasenas', 'error')
-                return redirect(url_for('usuarios.gestion'))
+                add_error('password', 'No tienes permisos para asignar o cambiar contrasenas')
             if not validar_password(data.get('password')):
-                flash('La contrasena no cumple con los requisitos minimos', 'error')
-                return redirect(url_for('usuarios.gestion'))
+                add_error('password', 'La contrasena no cumple con los requisitos minimos')
 
         usuario.nombre = data.get('nombre')
         usuario.apellido = data.get('apellido')
@@ -399,17 +407,25 @@ def gestionar_usuario():
         if role_id:
             role = Role.query.filter_by(id=role_id, active=True).first()
             if not role:
-                flash('El rol seleccionado no es valido', 'error')
-                return redirect(url_for('usuarios.gestion'))
+                add_error('role_id', 'El rol seleccionado no es valido')
 
             if not current_user.has_permission('users.assign_roles'):
-                flash('No tienes permisos para asignar roles', 'error')
-                return redirect(url_for('usuarios.gestion'))
+                add_error('role_id', 'No tienes permisos para asignar roles')
 
-            usuario.set_single_role(role)
+            if role and current_user.has_permission('users.assign_roles'):
+                usuario.set_single_role(role)
         elif not es_edicion:
-            flash('Debes seleccionar un rol para el nuevo usuario', 'error')
-            return redirect(url_for('usuarios.gestion'))
+            add_error('role_id', 'Debes seleccionar un rol para el nuevo usuario')
+
+        if form_errors:
+            flash('Corrige los errores del formulario y vuelve a intentarlo', 'error')
+            return render_template(
+                'usuarios/gestion.html',
+                **_build_gestion_context(),
+                form_data=form_data,
+                form_errors=form_errors,
+                open_user_modal=True,
+            )
 
         if data.get('password'):
             usuario.set_password(data.get('password'))
@@ -426,7 +442,12 @@ def gestionar_usuario():
     except Exception as e:
         db.session.rollback()
         flash(f'Error al procesar el usuario: {str(e)}', 'error')
-        return redirect(url_for('usuarios.gestion'))
+        return render_template(
+            'usuarios/gestion.html',
+            **_build_gestion_context(),
+            form_data=request.form.to_dict(flat=True),
+            open_user_modal=True,
+        )
 
 
 @usuarios_bp.route('/editar/<int:user_id>')

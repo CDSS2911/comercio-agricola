@@ -4,6 +4,41 @@ Este directorio contiene scripts para generar datos de prueba de lotes de huevos
 
 ## Archivos Disponibles
 
+### `scale_sender.py` + `build_scale_sender_exe.bat` (Configurador de pesas para Windows)
+
+Este flujo genera un ejecutable `.exe` para usuarios no tecnicos, sin necesidad de instalar Python.
+
+**Compilar el ejecutable:**
+```bat
+scripts\build_scale_sender_exe.bat
+```
+
+**Resultado:**
+- Archivo final: `dist\ConfiguradorPesas.exe`
+- El ejecutable incluye Python y librerias necesarias (ejemplo: `pyserial`).
+- Interfaz grafica para:
+  - Crear/editar multiples pesas.
+  - Iniciar/detener envio de pesos al servidor.
+  - Detectar puertos COM.
+  - Crear acceso directo de escritorio.
+  - Descargar una guia PDF desde la misma aplicacion.
+
+**Distribucion al usuario final:**
+1. Enviar solo `ConfiguradorPesas.exe`.
+2. El usuario ejecuta el archivo.
+3. Configura la(s) pesa(s) desde la interfaz y pulsa `Iniciar envio`.
+
+**Inicio automatico al iniciar sesion de Windows:**
+- Desde la interfaz: usar `Activar inicio automatico`.
+- Por script:
+```bat
+scripts\install_scale_sender_startup.bat
+```
+- Para quitarlo:
+```bat
+scripts\remove_scale_sender_startup.bat
+```
+
 ### 1. `generar_lotes.py` (Recomendado)
 Script Python que usa SQLAlchemy para generar datos directamente en la base de datos.
 

@@ -180,6 +180,121 @@
         </div>
     </div>
 
+    <!-- Huevos rotos acumulados -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 font-weight-bold text-danger">Huevos Rotos (Hasta la Fecha)</h6>
+                    <span class="badge bg-danger">{{ total_huevos_rotos }}</span>
+                </div>
+                <div class="card-body">
+                    <form method="GET" action="{{ url_for('inventario.dashboard') }}" class="row g-2 mb-3">
+                        <input type="hidden" name="lotes_q" value="{{ lotes_q }}">
+                        <input type="hidden" name="lotes_fecha" value="{{ lotes_fecha }}">
+                        <input type="hidden" name="lotes_page" value="{{ lotes_page }}">
+                        <input type="hidden" name="rotos_page" value="1">
+                        <div class="col-md-5">
+                            <input type="text" class="form-control" name="rotos_q" value="{{ rotos_q }}" placeholder="Filtrar por número de lote">
+                        </div>
+                        <div class="col-md-4">
+                            <input type="date" class="form-control" name="rotos_fecha" value="{{ rotos_fecha }}">
+                        </div>
+                        <div class="col-md-3 d-flex gap-2">
+                            <button type="submit" class="btn btn-outline-danger w-100">
+                                <i class="fas fa-filter me-1"></i>Filtrar
+                            </button>
+                            <a href="{{ url_for('inventario.dashboard', lotes_q=lotes_q, lotes_fecha=lotes_fecha, lotes_page=lotes_page) }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-eraser"></i>
+                            </a>
+                        </div>
+                    </form>
+
+                    {% if huevos_rotos_hasta_fecha %}
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-sm align-middle">
+                            <thead>
+                                <tr>
+                                    <th>ID Huevo</th>
+                                    <th>Fecha y Hora</th>
+                                    <th>Lote</th>
+                                    <th>Categoría</th>
+                                    <th>Peso (g)</th>
+                                    <th>Usuario</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in huevos_rotos_hasta_fecha %}
+                                <tr>
+                                    <td>{{ item.huevo_id }}</td>
+                                    <td>{{ item.timestamp.strftime('%d/%m/%Y %H:%M:%S') if item.timestamp else '-' }}</td>
+                                    <td>
+                                        {% if item.lote_id %}
+                                        <a href="{{ url_for('inventario.ver_detalle_lote', lote_id=item.lote_id) }}" class="text-decoration-none">
+                                            {{ item.numero_lote }}
+                                        </a>
+                                        {% else %}
+                                        -
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ item.categoria_nombre or 'No disponible' }}</td>
+                                    <td>{{ ('%.1f'|format(item.peso)) if item.peso is not none else '0.0' }}</td>
+                                    <td>
+                                        {% if item.usuario_first_name or item.usuario_last_name %}
+                                            {{ (item.usuario_first_name or '') ~ ' ' ~ (item.usuario_last_name or '') }}
+                                        {% else %}
+                                            {{ item.usuario_username or '-' }}
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% if rotos_pages > 1 %}
+                    <div class="d-flex flex-wrap gap-2 align-items-center mt-3">
+                    <nav aria-label="Paginación huevos rotos">
+                        <ul class="pagination pagination-sm mb-0">
+                            <li class="page-item {% if rotos_page <= 1 %}disabled{% endif %}">
+                                <a class="page-link" href="{{ url_for('inventario.dashboard', rotos_page=rotos_page-1, rotos_q=rotos_q, rotos_fecha=rotos_fecha, lotes_page=lotes_page, lotes_q=lotes_q, lotes_fecha=lotes_fecha) }}">Anterior</a>
+                            </li>
+                            {% for p in rotos_pagination_items %}
+                            {% if p is none %}
+                            <li class="page-item disabled"><span class="page-link">...</span></li>
+                            {% else %}
+                            <li class="page-item {% if p == rotos_page %}active{% endif %}">
+                                <a class="page-link" href="{{ url_for('inventario.dashboard', rotos_page=p, rotos_q=rotos_q, rotos_fecha=rotos_fecha, lotes_page=lotes_page, lotes_q=lotes_q, lotes_fecha=lotes_fecha) }}">{{ p }}</a>
+                            </li>
+                            {% endif %}
+                            {% endfor %}
+                            <li class="page-item {% if rotos_page >= rotos_pages %}disabled{% endif %}">
+                                <a class="page-link" href="{{ url_for('inventario.dashboard', rotos_page=rotos_page+1, rotos_q=rotos_q, rotos_fecha=rotos_fecha, lotes_page=lotes_page, lotes_q=lotes_q, lotes_fecha=lotes_fecha) }}">Siguiente</a>
+                            </li>
+                        </ul>
+                    </nav>
+                    <form method="GET" action="{{ url_for('inventario.dashboard') }}" class="d-flex gap-2 align-items-center">
+                        <input type="hidden" name="rotos_q" value="{{ rotos_q }}">
+                        <input type="hidden" name="rotos_fecha" value="{{ rotos_fecha }}">
+                        <input type="hidden" name="lotes_page" value="{{ lotes_page }}">
+                        <input type="hidden" name="lotes_q" value="{{ lotes_q }}">
+                        <input type="hidden" name="lotes_fecha" value="{{ lotes_fecha }}">
+                        <label class="small text-muted mb-0" for="rotos_page_jump">Ir a:</label>
+                        <input id="rotos_page_jump" type="number" class="form-control form-control-sm" name="rotos_page" min="1" max="{{ rotos_pages }}" value="{{ rotos_page }}" style="width: 90px;">
+                        <button type="submit" class="btn btn-sm btn-outline-danger">Ir</button>
+                    </form>
+                    </div>
+                    {% endif %}
+                    {% else %}
+                    <div class="text-center py-3">
+                        <i class="fas fa-heartbeat fa-2x text-muted mb-2"></i>
+                        <p class="text-muted mb-0">No hay huevos rotos registrados hasta la fecha.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Lotes recientes -->
     <div class="row">
         <div class="col-12">
@@ -194,6 +309,27 @@
                     </div>
                 </div>
                 <div class="card-body">
+                    <form method="GET" action="{{ url_for('inventario.dashboard') }}" class="row g-2 mb-3">
+                        <input type="hidden" name="rotos_q" value="{{ rotos_q }}">
+                        <input type="hidden" name="rotos_fecha" value="{{ rotos_fecha }}">
+                        <input type="hidden" name="rotos_page" value="{{ rotos_page }}">
+                        <input type="hidden" name="lotes_page" value="1">
+                        <div class="col-md-5">
+                            <input type="text" class="form-control" name="lotes_q" value="{{ lotes_q }}" placeholder="Filtrar por número de lote">
+                        </div>
+                        <div class="col-md-4">
+                            <input type="date" class="form-control" name="lotes_fecha" value="{{ lotes_fecha }}">
+                        </div>
+                        <div class="col-md-3 d-flex gap-2">
+                            <button type="submit" class="btn btn-outline-primary w-100">
+                                <i class="fas fa-filter me-1"></i>Filtrar
+                            </button>
+                            <a href="{{ url_for('inventario.dashboard', rotos_q=rotos_q, rotos_fecha=rotos_fecha, rotos_page=rotos_page) }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-eraser"></i>
+                            </a>
+                        </div>
+                    </form>
+
                     {% if lotes_recientes %}
                     <div class="table-responsive">
                         <table class="table table-bordered">
@@ -246,6 +382,39 @@
                             </tbody>
                         </table>
                     </div>
+                    {% if lotes_pages > 1 %}
+                    <div class="d-flex flex-wrap gap-2 align-items-center mt-3">
+                    <nav aria-label="Paginación lotes recientes">
+                        <ul class="pagination pagination-sm mb-0">
+                            <li class="page-item {% if lotes_page <= 1 %}disabled{% endif %}">
+                                <a class="page-link" href="{{ url_for('inventario.dashboard', lotes_page=lotes_page-1, lotes_q=lotes_q, lotes_fecha=lotes_fecha, rotos_page=rotos_page, rotos_q=rotos_q, rotos_fecha=rotos_fecha) }}">Anterior</a>
+                            </li>
+                            {% for p in lotes_pagination_items %}
+                            {% if p is none %}
+                            <li class="page-item disabled"><span class="page-link">...</span></li>
+                            {% else %}
+                            <li class="page-item {% if p == lotes_page %}active{% endif %}">
+                                <a class="page-link" href="{{ url_for('inventario.dashboard', lotes_page=p, lotes_q=lotes_q, lotes_fecha=lotes_fecha, rotos_page=rotos_page, rotos_q=rotos_q, rotos_fecha=rotos_fecha) }}">{{ p }}</a>
+                            </li>
+                            {% endif %}
+                            {% endfor %}
+                            <li class="page-item {% if lotes_page >= lotes_pages %}disabled{% endif %}">
+                                <a class="page-link" href="{{ url_for('inventario.dashboard', lotes_page=lotes_page+1, lotes_q=lotes_q, lotes_fecha=lotes_fecha, rotos_page=rotos_page, rotos_q=rotos_q, rotos_fecha=rotos_fecha) }}">Siguiente</a>
+                            </li>
+                        </ul>
+                    </nav>
+                    <form method="GET" action="{{ url_for('inventario.dashboard') }}" class="d-flex gap-2 align-items-center">
+                        <input type="hidden" name="lotes_q" value="{{ lotes_q }}">
+                        <input type="hidden" name="lotes_fecha" value="{{ lotes_fecha }}">
+                        <input type="hidden" name="rotos_page" value="{{ rotos_page }}">
+                        <input type="hidden" name="rotos_q" value="{{ rotos_q }}">
+                        <input type="hidden" name="rotos_fecha" value="{{ rotos_fecha }}">
+                        <label class="small text-muted mb-0" for="lotes_page_jump">Ir a:</label>
+                        <input id="lotes_page_jump" type="number" class="form-control form-control-sm" name="lotes_page" min="1" max="{{ lotes_pages }}" value="{{ lotes_page }}" style="width: 90px;">
+                        <button type="submit" class="btn btn-sm btn-outline-primary">Ir</button>
+                    </form>
+                    </div>
+                    {% endif %}
                     {% else %}
                     <div class="text-center py-4">
                         <i class="fas fa-clipboard-list fa-3x text-muted mb-3"></i>

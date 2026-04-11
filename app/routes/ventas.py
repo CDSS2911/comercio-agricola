@@ -11,6 +11,7 @@ import uuid
 
 ventas_bp = Blueprint('ventas', __name__, url_prefix='/ventas')
 SYSTEM_CASH_CLIENT_DOC = '__SISTEMA_CONTADO__'
+HUEVOS_POR_PANEL = 30
 
 
 def _redirect_back(default_endpoint='ventas.historial_ventas', **values):
@@ -64,6 +65,67 @@ def _get_or_create_system_cash_client():
     db.session.add(cliente)
     db.session.flush()
     return cliente
+
+
+def _venta_es_editable(venta):
+    """Reglas de negocio para permitir editar una venta."""
+    if venta.estado == 'cancelada':
+        return False, 'No se puede editar una venta cancelada'
+
+    pagos_registrados = Pago.query.filter_by(venta_id=venta.id).count()
+    if pagos_registrados > 0:
+        return False, 'No se puede editar una venta que ya tiene pagos registrados'
+
+    return True, ''
+
+
+def _obtener_huevos_disponibles_por_categoria(categoria_id):
+    return db.session.query(func.count(Huevo.id)).filter(
+        Huevo.categoria_id == categoria_id,
+        Huevo.roto == False,
+        Huevo.vendido == False
+    ).scalar() or 0
+
+
+def _liberar_huevos_categoria(categoria_id, cantidad_huevos):
+    huevos_a_liberar = Huevo.query.filter(
+        Huevo.categoria_id == categoria_id,
+        Huevo.roto == False,
+        Huevo.vendido == True
+    ).order_by(
+        Huevo.fecha_venta.desc(),
+        Huevo.id.desc()
+    ).limit(cantidad_huevos).all()
+
+    if len(huevos_a_liberar) < cantidad_huevos:
+        categoria = CategoriaHuevo.query.get(categoria_id)
+        nombre_categoria = categoria.nombre if categoria else str(categoria_id)
+        raise ValueError(
+            f'No fue posible liberar inventario suficiente para la categoria {nombre_categoria}.'
+        )
+
+    for huevo in huevos_a_liberar:
+        huevo.vendido = False
+        huevo.fecha_venta = None
+
+
+def _marcar_huevos_vendidos_categoria(categoria_id, cantidad_huevos):
+    huevos_a_vender = db.session.query(Huevo).join(LoteRecoleccion).filter(
+        Huevo.categoria_id == categoria_id,
+        Huevo.roto == False,
+        Huevo.vendido == False
+    ).order_by(LoteRecoleccion.fecha_recoleccion).limit(cantidad_huevos).all()
+
+    if len(huevos_a_vender) < cantidad_huevos:
+        categoria = CategoriaHuevo.query.get(categoria_id)
+        nombre_categoria = categoria.nombre if categoria else str(categoria_id)
+        raise ValueError(
+            f'No hay inventario suficiente para la categoria {nombre_categoria}.'
+        )
+
+    for huevo in huevos_a_vender:
+        huevo.vendido = True
+        huevo.fecha_venta = datetime.now()
 
 
 @ventas_bp.route('/')
@@ -145,7 +207,11 @@ def nueva_venta():
     return render_template('ventas/nueva_venta.html',
                          title='Nueva Venta',
                          inventario=inventario,
-                         clientes=clientes)
+                         clientes=clientes,
+                         modo_edicion=False,
+                         venta_editar=None,
+                         carrito_inicial=[],
+                         cliente_inicial=None)
 
 
 @ventas_bp.route('/procesar', methods=['POST'])
@@ -162,7 +228,6 @@ def procesar_venta():
         tipo_pago = data.get('tipo_pago', 'contado')
         cliente_id = data.get('cliente_id') if tipo_pago == 'credito' else None
         descuento = float(data.get('descuento', 0))
-        subtotal_general = float(data.get('subtotal_general', 0) or 0)
         
         # Validar cliente si es venta a credito
         cliente = None
@@ -189,7 +254,10 @@ def procesar_venta():
             subtotal_item = float(detalle.get('subtotal', 0))
             
             if cantidad_huevos <= 0:
-                return jsonify({'error': 'La cantidad de huevos debe ser mayor a cero'}), 400
+                return jsonify({'error': 'La cantidad de paneles debe ser mayor a cero'}), 400
+            if cantidad_huevos % HUEVOS_POR_PANEL != 0:
+                return jsonify({'error': f'Solo se permiten paneles completos de {HUEVOS_POR_PANEL} huevos'}), 400
+            cantidad_paneles = cantidad_huevos // HUEVOS_POR_PANEL
             if subtotal_item <= 0:
                 return jsonify({'error': 'El subtotal del producto debe ser mayor a cero'}), 400
             if precio_unitario <= 0:
@@ -204,10 +272,11 @@ def procesar_venta():
                 Huevo.vendido == False
             ).scalar()
             
-            if disponibles < cantidad_huevos:
+            paneles_disponibles = int(disponibles or 0) // HUEVOS_POR_PANEL
+            if disponibles < cantidad_huevos or paneles_disponibles < cantidad_paneles:
                 categoria = CategoriaHuevo.query.get(categoria_id)
                 return jsonify({
-                    'error': f'No hay suficientes huevos disponibles de categoría {categoria.nombre}. Disponibles: {disponibles}'
+                    'error': f'No hay suficientes paneles disponibles de categoria {categoria.nombre}. Disponibles: {paneles_disponibles} panel(es)'
                 }), 400
             
             subtotal += subtotal_item
@@ -215,26 +284,10 @@ def procesar_venta():
             detalles_procesados.append({
                 'categoria_id': categoria_id,
                 'cantidad_huevos': cantidad_huevos,
-                'cantidad_paneles': cantidad_huevos // 30,
+                'cantidad_paneles': cantidad_paneles,
                 'precio_unitario': precio_unitario,
                 'subtotal': subtotal_item
             })
-        
-        # Permitir ajuste manual del subtotal general de toda la venta
-        if subtotal_general > 0 and subtotal > 0 and abs(subtotal_general - subtotal) > 0.009:
-            factor = subtotal_general / subtotal
-            for d in detalles_procesados:
-                d['subtotal'] = round(float(d['subtotal']) * factor, 2)
-                d['precio_unitario'] = d['subtotal'] / d['cantidad_huevos']
-            
-            diferencia = round(subtotal_general - sum(float(d['subtotal']) for d in detalles_procesados), 2)
-            if detalles_procesados and abs(diferencia) > 0:
-                detalles_procesados[-1]['subtotal'] = round(float(detalles_procesados[-1]['subtotal']) + diferencia, 2)
-                detalles_procesados[-1]['precio_unitario'] = detalles_procesados[-1]['subtotal'] / detalles_procesados[-1]['cantidad_huevos']
-            
-            subtotal = sum(float(d['subtotal']) for d in detalles_procesados)
-        elif subtotal_general > 0:
-            subtotal = subtotal_general
         
         total = subtotal - descuento
         
@@ -278,17 +331,7 @@ def procesar_venta():
                 subtotal=detalle_data['subtotal']
             )
             db.session.add(detalle)
-            
-            # Marcar huevos como vendidos (FIFO - First In, First Out)
-            huevos_a_vender = db.session.query(Huevo).join(LoteRecoleccion).filter(
-                Huevo.categoria_id == detalle_data['categoria_id'],
-                Huevo.roto == False,
-                Huevo.vendido == False
-            ).order_by(LoteRecoleccion.fecha_recoleccion).limit(detalle_data['cantidad_huevos']).all()
-            
-            for huevo in huevos_a_vender:
-                huevo.vendido = True
-                huevo.fecha_venta = datetime.now()
+            _marcar_huevos_vendidos_categoria(detalle_data['categoria_id'], detalle_data['cantidad_huevos'])
         
         db.session.commit()
         
@@ -303,6 +346,229 @@ def procesar_venta():
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': f'Error procesando la venta: {str(e)}'}), 500
+
+
+@ventas_bp.route('/editar/<int:venta_id>')
+@login_required
+def editar_venta(venta_id):
+    """Formulario para editar una venta existente."""
+    venta = Venta.query.get_or_404(venta_id)
+    editable, motivo = _venta_es_editable(venta)
+    if not editable:
+        flash(motivo, 'danger')
+        return redirect(url_for('ventas.detalle_venta', venta_id=venta.id))
+
+    inventario_base = db.session.query(
+        CategoriaHuevo.id,
+        CategoriaHuevo.nombre,
+        CategoriaHuevo.precio_venta,
+        CategoriaHuevo.peso_min,
+        CategoriaHuevo.peso_max,
+        func.count(Huevo.id).label('cantidad_disponible')
+    ).join(
+        Huevo, CategoriaHuevo.id == Huevo.categoria_id
+    ).filter(
+        Huevo.roto == False,
+        Huevo.vendido == False,
+        CategoriaHuevo.activo == True
+    ).group_by(
+        CategoriaHuevo.id, CategoriaHuevo.nombre,
+        CategoriaHuevo.precio_venta, CategoriaHuevo.peso_min, CategoriaHuevo.peso_max
+    ).all()
+
+    inventario_map = {item.id: {
+        'id': item.id,
+        'nombre': item.nombre,
+        'precio_venta': float(item.precio_venta or 0),
+        'peso_min': float(item.peso_min or 0),
+        'peso_max': float(item.peso_max or 0),
+        'cantidad_disponible': int(item.cantidad_disponible or 0)
+    } for item in inventario_base}
+
+    carrito_inicial = []
+    for detalle in venta.detalles:
+        if detalle.categoria_id not in inventario_map:
+            categoria = CategoriaHuevo.query.get(detalle.categoria_id)
+            inventario_map[detalle.categoria_id] = {
+                'id': detalle.categoria_id,
+                'nombre': categoria.nombre if categoria else f'Categoria {detalle.categoria_id}',
+                'precio_venta': float(detalle.precio_unitario or 0),
+                'peso_min': float(categoria.peso_min or 0) if categoria else 0,
+                'peso_max': float(categoria.peso_max or 0) if categoria else 0,
+                'cantidad_disponible': 0
+            }
+        inventario_map[detalle.categoria_id]['cantidad_disponible'] += int(detalle.cantidad_huevos or 0)
+
+        carrito_inicial.append({
+            'id': detalle.categoria_id,
+            'nombre': detalle.categoria.nombre if detalle.categoria else f'Categoria {detalle.categoria_id}',
+            'precio_recomendado': float((detalle.categoria.precio_venta if detalle.categoria else detalle.precio_unitario) or 0),
+            'cantidad': int(detalle.cantidad_huevos or 0),
+            'disponible': int(inventario_map[detalle.categoria_id]['cantidad_disponible']),
+            'subtotal_recomendado': int(detalle.cantidad_huevos or 0) * float((detalle.categoria.precio_venta if detalle.categoria else detalle.precio_unitario) or 0),
+            'subtotal': float(detalle.subtotal or 0)
+        })
+
+    inventario = sorted(inventario_map.values(), key=lambda x: x['peso_min'])
+
+    clientes = Cliente.query.filter(
+        _cliente_contado_legacy_filter(),
+        Cliente.activo == True
+    ).order_by(Cliente.nombre).all()
+
+    cliente_inicial = None
+    if venta.tipo_pago == 'credito' and venta.cliente:
+        cliente_inicial = {
+            'id': venta.cliente.id,
+            'nombre_completo': venta.cliente.get_nombre_completo(),
+            'limite_credito': float(venta.cliente.limite_credito or 0),
+            'saldo_pendiente': float(venta.cliente.get_saldo_pendiente() or 0),
+        }
+
+    return render_template(
+        'ventas/nueva_venta.html',
+        title=f'Editar Venta {venta.numero_venta}',
+        inventario=inventario,
+        clientes=clientes,
+        modo_edicion=True,
+        venta_editar=venta,
+        carrito_inicial=carrito_inicial,
+        cliente_inicial=cliente_inicial
+    )
+
+
+@ventas_bp.route('/actualizar/<int:venta_id>', methods=['POST'])
+@login_required
+def actualizar_venta(venta_id):
+    """Actualizar una venta existente (sin pagos y no cancelada)."""
+    try:
+        venta = Venta.query.get_or_404(venta_id)
+        editable, motivo = _venta_es_editable(venta)
+        if not editable:
+            return jsonify({'error': motivo}), 400
+
+        data = request.get_json()
+        if not data or not data.get('detalles') or len(data['detalles']) == 0:
+            return jsonify({'error': 'No hay productos en la venta'}), 400
+
+        tipo_pago = data.get('tipo_pago', 'contado')
+        cliente_id = data.get('cliente_id') if tipo_pago == 'credito' else None
+        descuento = float(data.get('descuento', 0))
+
+        cliente = None
+        if tipo_pago == 'credito':
+            if not cliente_id:
+                return jsonify({'error': 'Cliente requerido para venta a credito'}), 400
+            cliente = Cliente.query.get(cliente_id)
+            if not cliente or not cliente.activo:
+                return jsonify({'error': 'Cliente no valido'}), 400
+        else:
+            cliente_id = None
+            if not _venta_cliente_admite_null():
+                cliente_id = _get_or_create_system_cash_client().id
+
+        subtotal = 0
+        detalles_procesados = []
+
+        for detalle in data['detalles']:
+            categoria_id = int(detalle['categoria_id'])
+            cantidad_huevos = int(detalle['cantidad_huevos'])
+            precio_unitario = float(detalle.get('precio_unitario', 0))
+            subtotal_item = float(detalle.get('subtotal', 0))
+
+            if cantidad_huevos <= 0:
+                return jsonify({'error': 'La cantidad de paneles debe ser mayor a cero'}), 400
+            if cantidad_huevos % HUEVOS_POR_PANEL != 0:
+                return jsonify({'error': f'Solo se permiten paneles completos de {HUEVOS_POR_PANEL} huevos'}), 400
+
+            cantidad_paneles = cantidad_huevos // HUEVOS_POR_PANEL
+
+            if subtotal_item <= 0:
+                return jsonify({'error': 'El subtotal del producto debe ser mayor a cero'}), 400
+            if precio_unitario <= 0:
+                precio_unitario = subtotal_item / cantidad_huevos
+            if precio_unitario <= 0:
+                return jsonify({'error': 'El precio unitario calculado no es valido'}), 400
+
+            vendidos_actuales_categoria = db.session.query(
+                func.coalesce(func.sum(DetalleVenta.cantidad_huevos), 0)
+            ).filter(DetalleVenta.venta_id == venta.id, DetalleVenta.categoria_id == categoria_id).scalar() or 0
+
+            disponibles = _obtener_huevos_disponibles_por_categoria(categoria_id) + int(vendidos_actuales_categoria)
+            paneles_disponibles = disponibles // HUEVOS_POR_PANEL
+            if disponibles < cantidad_huevos or paneles_disponibles < cantidad_paneles:
+                categoria = CategoriaHuevo.query.get(categoria_id)
+                return jsonify({
+                    'error': f'No hay suficientes paneles disponibles de categoria {categoria.nombre}. Disponibles: {paneles_disponibles} panel(es)'
+                }), 400
+
+            subtotal += subtotal_item
+            detalles_procesados.append({
+                'categoria_id': categoria_id,
+                'cantidad_huevos': cantidad_huevos,
+                'cantidad_paneles': cantidad_paneles,
+                'precio_unitario': precio_unitario,
+                'subtotal': subtotal_item
+            })
+
+        total = subtotal - descuento
+        if total <= 0:
+            return jsonify({'error': 'El total debe ser mayor a cero'}), 400
+
+        if tipo_pago == 'credito':
+            saldo_base = float(cliente.get_saldo_pendiente() or 0)
+            if venta.cliente_id == cliente.id and venta.estado in ['pendiente', 'parcial']:
+                saldo_base -= float(venta.total or 0)
+            if (saldo_base + total) > float(cliente.limite_credito or 0):
+                return jsonify({
+                    'error': f'Limite de credito excedido. Saldo actual: ${saldo_base:.2f}, Limite: ${float(cliente.limite_credito):.2f}'
+                }), 400
+
+        detalles_actuales = DetalleVenta.query.filter_by(venta_id=venta.id).all()
+        for detalle in detalles_actuales:
+            _liberar_huevos_categoria(detalle.categoria_id, int(detalle.cantidad_huevos or 0))
+            db.session.delete(detalle)
+
+        venta.cliente_id = cliente_id
+        venta.tipo_pago = tipo_pago
+        venta.subtotal = subtotal
+        venta.descuento = descuento
+        venta.total = total
+        venta.observaciones = data.get('observaciones', '')
+
+        if tipo_pago == 'credito':
+            if not venta.fecha_vencimiento:
+                venta.fecha_vencimiento = datetime.now() + timedelta(days=30)
+            venta.estado = 'pendiente'
+        else:
+            venta.fecha_vencimiento = None
+            venta.estado = 'completada'
+
+        for detalle_data in detalles_procesados:
+            detalle = DetalleVenta(
+                venta_id=venta.id,
+                categoria_id=detalle_data['categoria_id'],
+                cantidad_huevos=detalle_data['cantidad_huevos'],
+                cantidad_paneles=detalle_data['cantidad_paneles'],
+                precio_unitario=detalle_data['precio_unitario'],
+                subtotal=detalle_data['subtotal']
+            )
+            db.session.add(detalle)
+            _marcar_huevos_vendidos_categoria(detalle_data['categoria_id'], detalle_data['cantidad_huevos'])
+
+        venta.actualizar_estado()
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'venta_id': venta.id,
+            'numero_venta': venta.numero_venta,
+            'total': float(venta.total),
+            'mensaje': 'Venta actualizada exitosamente'
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Error actualizando la venta: {str(e)}'}), 500
 
 
 @ventas_bp.route('/historial')
@@ -517,14 +783,33 @@ def export_excel_ventas():
             d.categoria.nombre if d.categoria else 'N/A',
             d.cantidad_huevos,
             d.cantidad_paneles,
-            float(d.precio_unitario or 0),
+            float((d.precio_unitario or 0) * HUEVOS_POR_PANEL),
             float(d.subtotal or 0)
         ] for d in detalles]
-        return create_excel_response(
+        resumen_rows = [[
+            venta.numero_venta,
+            venta.fecha_venta,
+            venta.cliente.get_nombre_completo() if venta.cliente else 'N/A',
+            venta.tipo_pago,
+            float(venta.subtotal or 0),
+            float(venta.descuento or 0),
+            float(venta.total or 0),
+            venta.estado
+        ]]
+        return create_excel_multisheet_response(
             f'detalle_{venta.numero_venta}.xlsx',
-            'Detalle Venta',
-            ['Categoria', 'Huevos', 'Paneles', 'Precio Unitario', 'Subtotal'],
-            rows
+            [
+                {
+                    'name': 'Detalle Venta',
+                    'headers': ['Categoria', 'Huevos', 'Paneles', 'Precio por Panel', 'Subtotal'],
+                    'rows': rows
+                },
+                {
+                    'name': 'Resumen',
+                    'headers': ['Numero Venta', 'Fecha', 'Cliente', 'Tipo Pago', 'Subtotal', 'Descuento', 'Total Final', 'Estado'],
+                    'rows': resumen_rows
+                }
+            ]
         )
 
     if tabla == 'dashboard_inventario':
@@ -907,25 +1192,7 @@ def anular_venta(venta_id):
     try:
         detalles = DetalleVenta.query.filter_by(venta_id=venta.id).all()
         for detalle in detalles:
-            huevos_a_liberar = Huevo.query.filter(
-                Huevo.categoria_id == detalle.categoria_id,
-                Huevo.roto == False,
-                Huevo.vendido == True
-            ).order_by(
-                Huevo.fecha_venta.desc(),
-                Huevo.id.desc()
-            ).limit(detalle.cantidad_huevos).all()
-
-            if len(huevos_a_liberar) < detalle.cantidad_huevos:
-                categoria = CategoriaHuevo.query.get(detalle.categoria_id)
-                nombre_categoria = categoria.nombre if categoria else str(detalle.categoria_id)
-                raise ValueError(
-                    f'No fue posible liberar inventario suficiente para la categoria {nombre_categoria}.'
-                )
-
-            for huevo in huevos_a_liberar:
-                huevo.vendido = False
-                huevo.fecha_venta = None
+            _liberar_huevos_categoria(detalle.categoria_id, int(detalle.cantidad_huevos or 0))
 
         motivo = (request.form.get('motivo') or '').strip()
         sello = f'ANULADA {datetime.now().strftime("%Y-%m-%d %H:%M")}'
@@ -1005,3 +1272,5 @@ def api_buscar_clientes():
         'saldo_pendiente': cliente.get_saldo_pendiente(),
         'puede_comprar': cliente.limite_credito > cliente.get_saldo_pendiente()
     } for cliente in clientes])
+
+

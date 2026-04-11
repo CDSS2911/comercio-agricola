@@ -4,6 +4,8 @@
 
 {% block content %}
 <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+{% set fd = form_data if form_data is defined else {} %}
+{% set fe = form_errors if form_errors is defined else {} %}
 <div class="container-fluid">
     <div class="row">
         <div class="col-12">
@@ -99,8 +101,8 @@
                             <label for="estado" class="form-label">Estado</label>
                             <select class="form-select" id="estado" name="estado">
                                 <option value="">Todos los estados</option>
-                                <option value="activo" {{ 'selected' if request.args.get('estado') == 'activo' }}>Activos</option>
-                                <option value="inactivo" {{ 'selected' if request.args.get('estado') == 'inactivo' }}>Inactivos</option>
+                                <option value="activo" {{ 'selected' if (estado_filter if estado_filter is defined else request.args.get('estado')) == 'activo' }}>Activos</option>
+                                <option value="inactivo" {{ 'selected' if (estado_filter if estado_filter is defined else request.args.get('estado')) == 'inactivo' }}>Inactivos</option>
                             </select>
                         </div>
                         <div class="col-md-3">
@@ -108,16 +110,16 @@
                             <select class="form-select" id="rol" name="rol">
                                 <option value="">Todos los roles</option>
                                 {% for role in roles %}
-                                <option value="{{ role.slug }}" {{ 'selected' if request.args.get('rol') == role.slug }}>{{ role.name }}</option>
+                                <option value="{{ role.slug }}" {{ 'selected' if (rol_filter if rol_filter is defined else request.args.get('rol')) == role.slug }}>{{ role.name }}</option>
                                 {% endfor %}
-                                <option value="sin_rol" {{ 'selected' if request.args.get('rol') == 'sin_rol' }}>Sin rol</option>
+                                <option value="sin_rol" {{ 'selected' if (rol_filter if rol_filter is defined else request.args.get('rol')) == 'sin_rol' }}>Sin rol</option>
                             </select>
                         </div>
                         <div class="col-md-4">
                             <label for="buscar" class="form-label">Buscar</label>
                             <input type="text" class="form-control" id="buscar" name="buscar"
                                    placeholder="Nombre, username o email..."
-                                   value="{{ request.args.get('buscar', '') }}">
+                                   value="{{ buscar_filter if buscar_filter is defined else request.args.get('buscar', '') }}">
                         </div>
                         <div class="col-md-2">
                             <label class="form-label">&nbsp;</label>
@@ -254,36 +256,53 @@
             </div>
             <form id="usuarioForm" method="POST" action="{{ url_for('usuarios.gestionar_usuario') }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                <input type="hidden" id="usuario_id" name="id" value="">
+                <input type="hidden" id="usuario_id" name="id" value="{{ fd.get('id', '') }}">
                 <div class="modal-body">
+                    {% if fe %}
+                    <div class="alert alert-danger">
+                        <strong>Corrige los errores del formulario.</strong>
+                    </div>
+                    {% endif %}
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label for="nombre" class="form-label">Nombre *</label>
-                            <input type="text" class="form-control" id="nombre" name="nombre" required>
+                            <input type="text" class="form-control {{ 'is-invalid' if fe.get('nombre') }}" id="nombre" name="nombre" value="{{ fd.get('nombre', '') }}" required>
+                            {% if fe.get('nombre') %}
+                            <div class="invalid-feedback">{{ fe.get('nombre')[0] }}</div>
+                            {% endif %}
                         </div>
                         <div class="col-md-6 mb-3">
                             <label for="apellido" class="form-label">Apellido *</label>
-                            <input type="text" class="form-control" id="apellido" name="apellido" required>
+                            <input type="text" class="form-control {{ 'is-invalid' if fe.get('apellido') }}" id="apellido" name="apellido" value="{{ fd.get('apellido', '') }}" required>
+                            {% if fe.get('apellido') %}
+                            <div class="invalid-feedback">{{ fe.get('apellido')[0] }}</div>
+                            {% endif %}
                         </div>
                     </div>
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label for="username" class="form-label">Username *</label>
-                            <input type="text" class="form-control" id="username" name="username" required>
+                            <input type="text" class="form-control {{ 'is-invalid' if fe.get('username') }}" id="username" name="username" value="{{ fd.get('username', '') }}" required>
+                            {% if fe.get('username') %}
+                            <div class="invalid-feedback">{{ fe.get('username')[0] }}</div>
+                            {% endif %}
                         </div>
                         <div class="col-md-6 mb-3">
                             <label for="email" class="form-label">Email *</label>
-                            <input type="email" class="form-control" id="email" name="email" required>
+                            <input type="email" class="form-control {{ 'is-invalid' if fe.get('email') }}" id="email" name="email" value="{{ fd.get('email', '') }}" required>
+                            {% if fe.get('email') %}
+                            <div class="invalid-feedback">{{ fe.get('email')[0] }}</div>
+                            {% endif %}
                         </div>
                     </div>
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label for="telefono" class="form-label">Telefono</label>
-                            <input type="text" class="form-control" id="telefono" name="telefono">
+                            <input type="text" class="form-control" id="telefono" name="telefono" value="{{ fd.get('telefono', '') }}">
                         </div>
                         <div class="col-md-6 mb-3">
                             <label for="fecha_nacimiento" class="form-label">Fecha de Nacimiento</label>
-                            <input type="date" class="form-control" id="fecha_nacimiento" name="fecha_nacimiento">
+                            <input type="date" class="form-control" id="fecha_nacimiento" name="fecha_nacimiento" value="{{ fd.get('fecha_nacimiento', '') }}">
                         </div>
                     </div>
                     <div class="row">
@@ -291,21 +310,21 @@
                             <label for="tipo_identificacion" class="form-label">Tipo de Identificacion</label>
                             <select class="form-select" id="tipo_identificacion" name="tipo_identificacion">
                                 <option value="">Seleccionar...</option>
-                                <option value="CC">Cedula de Ciudadania</option>
-                                <option value="CE">Cedula de Extranjeria</option>
-                                <option value="TI">Tarjeta de Identidad</option>
-                                <option value="PP">Pasaporte</option>
-                                <option value="NIT">NIT</option>
+                                <option value="CC" {{ 'selected' if fd.get('tipo_identificacion') == 'CC' else '' }}>Cedula de Ciudadania</option>
+                                <option value="CE" {{ 'selected' if fd.get('tipo_identificacion') == 'CE' else '' }}>Cedula de Extranjeria</option>
+                                <option value="TI" {{ 'selected' if fd.get('tipo_identificacion') == 'TI' else '' }}>Tarjeta de Identidad</option>
+                                <option value="PP" {{ 'selected' if fd.get('tipo_identificacion') == 'PP' else '' }}>Pasaporte</option>
+                                <option value="NIT" {{ 'selected' if fd.get('tipo_identificacion') == 'NIT' else '' }}>NIT</option>
                             </select>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label for="numero_identificacion" class="form-label">Numero de Identificacion</label>
-                            <input type="text" class="form-control" id="numero_identificacion" name="numero_identificacion">
+                            <input type="text" class="form-control" id="numero_identificacion" name="numero_identificacion" value="{{ fd.get('numero_identificacion', '') }}">
                         </div>
                     </div>
                     <div class="mb-3">
                         <label for="direccion" class="form-label">Direccion</label>
-                        <textarea class="form-control" id="direccion" name="direccion" rows="2"></textarea>
+                        <textarea class="form-control" id="direccion" name="direccion" rows="2">{{ fd.get('direccion', '') }}</textarea>
                     </div>
 
                     <hr>
@@ -313,12 +332,15 @@
                     <div class="row">
                         <div class="col-md-8 mb-3">
                             <label for="role_id" class="form-label">Rol asignado *</label>
-                            <select class="form-select" id="role_id" name="role_id" required {{ '' if can_assign_roles else 'disabled' }}>
+                            <select class="form-select {{ 'is-invalid' if fe.get('role_id') }}" id="role_id" name="role_id" required {{ '' if can_assign_roles else 'disabled' }}>
                                 <option value="">Seleccionar rol...</option>
                                 {% for role in roles %}
-                                <option value="{{ role.id }}">{{ role.name }}</option>
+                                <option value="{{ role.id }}" {{ 'selected' if fd.get('role_id') == (role.id|string) else '' }}>{{ role.name }}</option>
                                 {% endfor %}
                             </select>
+                            {% if fe.get('role_id') %}
+                            <div class="invalid-feedback">{{ fe.get('role_id')[0] }}</div>
+                            {% endif %}
                             {% if not can_assign_roles %}
                             <small class="text-muted">No tienes permiso para cambiar roles.</small>
                             {% endif %}
@@ -326,16 +348,19 @@
                     </div>
 
                     <div class="form-check mb-3">
-                        <input class="form-check-input" type="checkbox" id="is_active" name="is_active" checked>
+                        <input class="form-check-input" type="checkbox" id="is_active" name="is_active" {{ 'checked' if fd.get('is_active', 'on') in ['1', 'true', 'on', 'yes'] else '' }}>
                         <label class="form-check-label" for="is_active">Usuario activo</label>
                     </div>
 
                     <div id="password-section">
                         <hr>
-                        <h6>Contrasena <span id="password-required">(Requerida para nuevo usuario)</span></h6>
+                        <h6>Contrasena <span id="password-required">{{ '(Opcional - solo si quiere cambiarla)' if fd.get('id') else '(Requerida para nuevo usuario)' }}</span></h6>
                         <div class="mb-3">
                             <label for="password" class="form-label">Contrasena</label>
-                            <input type="password" class="form-control" id="password" name="password" required>
+                            <input type="password" class="form-control {{ 'is-invalid' if fe.get('password') }}" id="password" name="password" {{ '' if fd.get('id') else 'required' }}>
+                            {% if fe.get('password') %}
+                            <div class="invalid-feedback">{{ fe.get('password')[0] }}</div>
+                            {% endif %}
                             <small class="form-text text-muted">Minimo 8 caracteres, con mayuscula, minuscula y numero.</small>
                         </div>
                     </div>
@@ -547,6 +572,16 @@ if (usuarioModal) {
         document.getElementById('password-required').textContent = '(Requerida para nuevo usuario)';
         document.getElementById('password').setAttribute('required', 'required');
     });
+
+    {% if open_user_modal %}
+    window.addEventListener('load', function() {
+        {% if fd.get('id') %}
+        document.getElementById('usuarioModalLabel').textContent = 'Editar Usuario';
+        document.getElementById('password').removeAttribute('required');
+        {% endif %}
+        bootstrap.Modal.getOrCreateInstance(usuarioModal).show();
+    });
+    {% endif %}
 }
 </script>
 {% endblock %}

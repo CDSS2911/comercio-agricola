@@ -22,6 +22,34 @@ inventario_bp = Blueprint('inventario', __name__, url_prefix='/inventario')
 @login_required
 def dashboard():
     """Dashboard principal del inventario"""
+    per_page = 10
+
+    def build_compact_pages(current_page, total_pages, edge=2, window=2):
+        if total_pages <= 1:
+            return [1]
+
+        pages = set()
+        pages.update(range(1, min(edge, total_pages) + 1))
+        pages.update(range(max(1, current_page - window), min(total_pages, current_page + window) + 1))
+        pages.update(range(max(1, total_pages - edge + 1), total_pages + 1))
+
+        ordered = sorted(pages)
+        compact = []
+        prev = None
+        for page in ordered:
+            if prev is not None and page - prev > 1:
+                compact.append(None)
+            compact.append(page)
+            prev = page
+        return compact
+
+    rotos_q = (request.args.get('rotos_q') or '').strip()
+    rotos_fecha_raw = (request.args.get('rotos_fecha') or '').strip()
+    rotos_page = max(request.args.get('rotos_page', 1, type=int) or 1, 1)
+
+    lotes_q = (request.args.get('lotes_q') or '').strip()
+    lotes_fecha_raw = (request.args.get('lotes_fecha') or '').strip()
+    lotes_page = max(request.args.get('lotes_page', 1, type=int) or 1, 1)
     # EstadÃ­sticas generales
     stats = {
         'lotes_hoy': LoteRecoleccion.query.filter_by(fecha_recoleccion=date.today()).count(),
@@ -46,15 +74,99 @@ def dashboard():
         db.and_(Huevo.categoria_id == CategoriaHuevo.id, Huevo.roto == False, Huevo.vendido == False)
     ).filter(CategoriaHuevo.activo == True).group_by(CategoriaHuevo.id).all()
     
-    # Lotes recientes
-    lotes_recientes = LoteRecoleccion.query.order_by(
-        LoteRecoleccion.created_at.desc()
-    ).limit(10).all()
+    # Huevos rotos acumulados hasta hoy (con filtros + paginacion)
+    fin_hoy = datetime.combine(date.today(), time.max)
+    query_huevos_rotos = (
+        db.session.query(
+            Huevo.id.label('huevo_id'),
+            Huevo.timestamp.label('timestamp'),
+            Huevo.peso.label('peso'),
+            LoteRecoleccion.id.label('lote_id'),
+            LoteRecoleccion.numero_lote.label('numero_lote'),
+            CategoriaHuevo.nombre.label('categoria_nombre'),
+            User.first_name.label('usuario_first_name'),
+            User.last_name.label('usuario_last_name'),
+            User.username.label('usuario_username')
+        )
+        .join(LoteRecoleccion, Huevo.lote_id == LoteRecoleccion.id)
+        .outerjoin(CategoriaHuevo, Huevo.categoria_id == CategoriaHuevo.id)
+        .outerjoin(User, LoteRecoleccion.usuario_id == User.id)
+        .filter(
+            Huevo.roto == True,
+            Huevo.timestamp <= fin_hoy
+        )
+    )
+
+    if rotos_q:
+        pattern = f'%{rotos_q}%'
+        query_huevos_rotos = query_huevos_rotos.filter(LoteRecoleccion.numero_lote.ilike(pattern))
+
+    if rotos_fecha_raw:
+        try:
+            rotos_fecha = datetime.strptime(rotos_fecha_raw, '%Y-%m-%d').date()
+            query_huevos_rotos = query_huevos_rotos.filter(db.func.date(Huevo.timestamp) == rotos_fecha)
+        except ValueError:
+            rotos_fecha_raw = ''
+
+    total_huevos_rotos = query_huevos_rotos.count()
+    rotos_pages = (total_huevos_rotos + per_page - 1) // per_page if total_huevos_rotos > 0 else 1
+    if rotos_page > rotos_pages:
+        rotos_page = rotos_pages
+    rotos_pagination_items = build_compact_pages(rotos_page, rotos_pages)
+
+    huevos_rotos_hasta_fecha = (
+        query_huevos_rotos
+        .order_by(Huevo.timestamp.desc())
+        .offset((rotos_page - 1) * per_page)
+        .limit(per_page)
+        .all()
+    )
+
+    # Lotes recientes (con filtros + paginacion)
+    query_lotes = LoteRecoleccion.query
+
+    if lotes_q:
+        pattern = f'%{lotes_q}%'
+        query_lotes = query_lotes.filter(LoteRecoleccion.numero_lote.ilike(pattern))
+
+    if lotes_fecha_raw:
+        try:
+            lotes_fecha = datetime.strptime(lotes_fecha_raw, '%Y-%m-%d').date()
+            query_lotes = query_lotes.filter(LoteRecoleccion.fecha_recoleccion == lotes_fecha)
+        except ValueError:
+            lotes_fecha_raw = ''
+
+    total_lotes = query_lotes.count()
+    lotes_pages = (total_lotes + per_page - 1) // per_page if total_lotes > 0 else 1
+    if lotes_page > lotes_pages:
+        lotes_page = lotes_pages
+    lotes_pagination_items = build_compact_pages(lotes_page, lotes_pages)
+
+    lotes_recientes = (
+        query_lotes
+        .order_by(LoteRecoleccion.created_at.desc())
+        .offset((lotes_page - 1) * per_page)
+        .limit(per_page)
+        .all()
+    )
     
     return render_template('inventario/dashboard.html',
                          stats=stats,
                          inventario=inventario,
-                         lotes_recientes=lotes_recientes)
+                         lotes_recientes=lotes_recientes,
+                         huevos_rotos_hasta_fecha=huevos_rotos_hasta_fecha,
+                         total_huevos_rotos=total_huevos_rotos,
+                         rotos_q=rotos_q,
+                         rotos_fecha=rotos_fecha_raw,
+                         rotos_page=rotos_page,
+                         rotos_pages=rotos_pages,
+                         rotos_pagination_items=rotos_pagination_items,
+                         total_lotes=total_lotes,
+                         lotes_q=lotes_q,
+                         lotes_fecha=lotes_fecha_raw,
+                         lotes_page=lotes_page,
+                         lotes_pages=lotes_pages,
+                         lotes_pagination_items=lotes_pagination_items)
 
 # =============================================================================
 # GESTIÃ“N DE CATEGORÃAS
@@ -933,6 +1045,7 @@ def pesar_manual(lote_id):
         payload = request.get_json(silent=True) or {}
         peso = float(payload.get('peso', 0))
         roto = bool(payload.get('roto', False))
+        categoria_id_raw = payload.get('categoria_id')
 
         if not roto and peso <= 0:
             return jsonify({'success': False, 'message': 'Peso invalido'})
@@ -946,7 +1059,17 @@ def pesar_manual(lote_id):
             lote_id=lote_id
         )
 
-        if not roto:
+        if roto:
+            if categoria_id_raw not in (None, ''):
+                try:
+                    categoria_id = int(categoria_id_raw)
+                except (TypeError, ValueError):
+                    return jsonify({'success': False, 'message': 'Categoria invalida'})
+                categoria = CategoriaHuevo.query.get(categoria_id)
+                if not categoria:
+                    return jsonify({'success': False, 'message': 'Categoria no encontrada'})
+                huevo.categoria_id = categoria.id
+        else:
             huevo.clasificar()
 
         db.session.add(huevo)
@@ -960,7 +1083,11 @@ def pesar_manual(lote_id):
                 'id': huevo.id,
                 'peso': huevo.peso,
                 'roto': huevo.roto,
-                'categoria': huevo.categoria.nombre if huevo.categoria else 'Sin clasificar'
+                'categoria': (
+                    huevo.categoria.nombre
+                    if huevo.categoria
+                    else ('No disponible' if huevo.roto else 'Sin clasificar')
+                )
             },
             'stats': {
                 'total_huevos': int(lote.total_huevos or 0),
@@ -1081,6 +1208,7 @@ def pesar_automatico(pesa_id):
         payload = request.get_json(silent=True) or {}
         peso = float(payload.get('peso', 0))
         roto = bool(payload.get('roto', False))
+        categoria_id_raw = payload.get('categoria_id')
 
         if not roto and peso <= 0:
             return jsonify({'success': False, 'message': 'Peso invalido'}), 400
@@ -1094,7 +1222,17 @@ def pesar_automatico(pesa_id):
             lote_id=lote.id
         )
 
-        if not roto:
+        if roto:
+            if categoria_id_raw not in (None, ''):
+                try:
+                    categoria_id = int(categoria_id_raw)
+                except (TypeError, ValueError):
+                    return jsonify({'success': False, 'message': 'Categoria invalida'}), 400
+                categoria = CategoriaHuevo.query.get(categoria_id)
+                if not categoria:
+                    return jsonify({'success': False, 'message': 'Categoria no encontrada'}), 400
+                huevo.categoria_id = categoria.id
+        else:
             huevo.clasificar()
 
         db.session.add(huevo)
@@ -1108,7 +1246,11 @@ def pesar_automatico(pesa_id):
                 'id': huevo.id,
                 'peso': huevo.peso,
                 'roto': huevo.roto,
-                'categoria': huevo.categoria.nombre if huevo.categoria else 'Sin clasificar',
+                'categoria': (
+                    huevo.categoria.nombre
+                    if huevo.categoria
+                    else ('No disponible' if huevo.roto else 'Sin clasificar')
+                ),
                 'lote_id': lote.id,
                 'pesa_id': pesa.id
             },
@@ -1190,7 +1332,11 @@ def obtener_ultimo_huevo(lote_id):
             'id': huevo.id,
             'peso': huevo.peso,
             'roto': huevo.roto,
-            'categoria': huevo.categoria.nombre if huevo.categoria else 'Sin clasificar',
+            'categoria': (
+                huevo.categoria.nombre
+                if huevo.categoria
+                else ('No disponible' if huevo.roto else 'Sin clasificar')
+            ),
             'timestamp': huevo.timestamp.isoformat()
         },
         'stats': {
@@ -1383,6 +1529,90 @@ def marcar_huevo_roto(huevo_id):
         
         return jsonify({'success': True, 'message': 'Huevo marcado como roto'})
         
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)})
+
+
+@inventario_bp.route('/huevos/<int:huevo_id>/editar', methods=['POST'])
+@login_required
+def editar_huevo(huevo_id):
+    """Editar un huevo en un lote de pesaje."""
+    try:
+        huevo = Huevo.query.get_or_404(huevo_id)
+        lote = huevo.lote
+
+        if lote.usuario_id != current_user.id and not current_user.is_admin:
+            return jsonify({'success': False, 'message': 'Sin permisos'})
+
+        if lote.estado != 'EN_PROCESO':
+            return jsonify({'success': False, 'message': 'Solo se pueden editar huevos de lotes en proceso'})
+
+        if huevo.vendido:
+            return jsonify({'success': False, 'message': 'No se puede editar un huevo ya vendido'})
+
+        payload = request.get_json(silent=True) or {}
+        peso = float(payload.get('peso', huevo.peso or 0))
+        roto = bool(payload.get('roto', huevo.roto))
+
+        if not roto and peso <= 0:
+            return jsonify({'success': False, 'message': 'Peso invalido'})
+
+        if roto and peso <= 0:
+            peso = 0
+
+        huevo.peso = peso
+        huevo.roto = roto
+
+        if huevo.roto:
+            huevo.categoria_id = None
+        else:
+            huevo.clasificar()
+
+        db.session.commit()
+
+        lote.actualizar_estadisticas()
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': 'Huevo actualizado correctamente',
+            'huevo': {
+                'id': huevo.id,
+                'peso': huevo.peso,
+                'roto': huevo.roto,
+                'categoria': huevo.categoria.nombre if huevo.categoria else 'Sin clasificar'
+            }
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)})
+
+
+@inventario_bp.route('/huevos/<int:huevo_id>/eliminar', methods=['POST'])
+@login_required
+def eliminar_huevo(huevo_id):
+    """Eliminar un huevo registrado en un lote."""
+    try:
+        huevo = Huevo.query.get_or_404(huevo_id)
+        lote = huevo.lote
+
+        if lote.usuario_id != current_user.id and not current_user.is_admin:
+            return jsonify({'success': False, 'message': 'Sin permisos'})
+
+        if lote.estado != 'EN_PROCESO':
+            return jsonify({'success': False, 'message': 'Solo se pueden eliminar huevos de lotes en proceso'})
+
+        if huevo.vendido:
+            return jsonify({'success': False, 'message': 'No se puede eliminar un huevo ya vendido'})
+
+        db.session.delete(huevo)
+        db.session.commit()
+
+        lote.actualizar_estadisticas()
+        db.session.commit()
+
+        return jsonify({'success': True, 'message': 'Huevo eliminado correctamente'})
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': str(e)})

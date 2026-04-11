@@ -2,7 +2,10 @@
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2><i class="fas fa-cash-register me-2"></i>Nueva Venta</h2>
+    <h2>
+        <i class="fas fa-cash-register me-2"></i>
+        {{ 'Editar Venta ' ~ venta_editar.numero_venta if modo_edicion else 'Nueva Venta' }}
+    </h2>
     <a href="{{ url_for('ventas.ventas_dashboard') }}" class="btn btn-secondary">
         <i class="fas fa-arrow-left me-1"></i>Volver al Dashboard
     </a>
@@ -25,13 +28,12 @@
                                 <h6 class="card-title text-primary">{{ item.nombre }}</h6>
                                 <p class="card-text">
                                     <small class="text-muted">{{ item.peso_min }}g - {{ item.peso_max }}g</small><br>
-                                    <strong>Disponibles:</strong> {{ item.cantidad_disponible }} huevos 
-                                    ({{ item.cantidad_disponible // 30 }} paneles)<br>
-                                    <strong>Precio:</strong> ${{ "%.2f"|format(item.precio_venta) }} c/u
+                                    <strong>Disponibles:</strong> {{ item.cantidad_disponible // 30 }} panales<br>
+                                    <strong>Precio:</strong> ${{ "%.2f"|format(item.precio_venta * 30) }} por panal
                                 </p>
                                 <button type="button" class="btn btn-primary btn-sm w-100" 
                                         onclick='agregarProducto({{ item.id }}, {{ item.nombre|tojson }}, {{ item.precio_venta }}, {{ item.cantidad_disponible }})'
-                                        {% if item.cantidad_disponible == 0 %}disabled{% endif %}>
+                                        {% if (item.cantidad_disponible // 30) == 0 %}disabled{% endif %}>
                                     <i class="fas fa-plus me-1"></i>Agregar a Venta
                                 </button>
                             </div>
@@ -43,7 +45,7 @@
                 <div class="text-center text-muted py-4">
                     <i class="fas fa-exclamation-triangle fa-3x mb-3"></i>
                     <h5>No hay productos disponibles</h5>
-                    <p>No se encontraron huevos disponibles para venta.</p>
+                    <p>No se encontraron panales disponibles para venta.</p>
                     <a href="{{ url_for('inventario.dashboard') }}" class="btn btn-primary">
                         <i class="fas fa-warehouse me-1"></i>Revisar Inventario
                     </a>
@@ -110,19 +112,8 @@
                 <!-- Resumen -->
                 <div id="resumenVenta" style="display: none;">
                     <hr>
-                    <div class="row mb-2">
-                        <div class="col">Subtotal:</div>
-                        <div class="col-auto" style="min-width: 150px;">
-                            <input type="text" class="form-control form-control-sm text-end"
-                                   id="subtotalManual" inputmode="numeric" value="0"
-                                   onchange="calcularTotal()">
-                        </div>
-                    </div>
-                    <div class="row mb-2">
-                        <div class="col text-muted">
-                            <small>Recomendado: $<span id="subtotalRecomendado">0.00</span></small>
-                        </div>
-                    </div>
+                    <input type="hidden" id="subtotalManual" value="0">
+                    <input type="hidden" id="subtotalRecomendado" value="0">
                     <div class="row mb-2">
                         <div class="col">
                             <input type="text" class="form-control form-control-sm" 
@@ -145,7 +136,7 @@
                     
                     <!-- Botón Procesar -->
                     <button type="button" class="btn btn-success w-100" onclick="procesarVenta()" id="btnProcesar">
-                        <i class="fas fa-check-circle me-1"></i>Procesar Venta
+                        <i class="fas fa-check-circle me-1"></i>{{ 'Actualizar Venta' if modo_edicion else 'Procesar Venta' }}
                     </button>
                 </div>
             </div>
@@ -218,6 +209,10 @@
 let carrito = [];
 let subtotal = 0;
 let clienteSeleccionado = null;
+const modoEdicion = {{ 'true' if modo_edicion else 'false' }};
+const ventaEdicionId = {{ venta_editar.id if venta_editar else 'null' }};
+const carritoInicial = {{ (carrito_inicial if carrito_inicial is defined else [])|tojson }};
+const clienteInicial = {{ (cliente_inicial if cliente_inicial is defined else None)|tojson }};
 
 function formatearMoneda(valor) {
     const numero = Math.round(Number(valor) || 0);
@@ -261,30 +256,36 @@ const clientesBase = [
 ];
 // Agregar producto al carrito (sin modal)
 function agregarProducto(id, nombre, precio, disponible) {
-    if (disponible <= 0) {
-        alert('No hay unidades disponibles');
+    const maxHuevosPorPaneles = Math.floor(disponible / 30) * 30;
+    if (maxHuevosPorPaneles <= 0) {
+        alert('No hay panales disponibles');
         return;
     }
     
     const existente = carrito.find(item => item.id === id);
     
     if (existente) {
-        if (existente.cantidad + 1 > disponible) {
-            alert('No hay más unidades disponibles');
+        if (existente.cantidad + 30 > maxHuevosPorPaneles) {
+            alert('No hay más panales disponibles');
             return;
         }
-        existente.cantidad += 1;
+        existente.cantidad += 30;
         existente.subtotal_recomendado = existente.cantidad * existente.precio_recomendado;
-        existente.subtotal = existente.subtotal_recomendado;
+        if (!Number.isFinite(existente.precio_unitario_ajustado) || existente.precio_unitario_ajustado <= 0) {
+            existente.precio_unitario_ajustado = existente.precio_recomendado;
+        }
+        existente.subtotal = existente.cantidad * existente.precio_unitario_ajustado;
     } else {
+        const subtotalInicial = precio * 30;
         carrito.push({
             id: id,
             nombre: nombre,
             precio_recomendado: precio,
-            cantidad: 1,
-            disponible: disponible,
-            subtotal_recomendado: precio,
-            subtotal: precio
+            precio_unitario_ajustado: precio,
+            cantidad: 30,
+            disponible: maxHuevosPorPaneles,
+            subtotal_recomendado: subtotalInicial,
+            subtotal: subtotalInicial
         });
     }
     
@@ -334,15 +335,15 @@ function actualizarCarrito() {
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <strong>${item.nombre}</strong><br>
-                            <small class="text-muted">Recomendado: $${formatearMoneda(item.subtotal_recomendado)} (${formatearMoneda(item.precio_recomendado)} c/u)</small>
+                            <small class="text-muted">Recomendado: $${formatearMoneda(item.subtotal_recomendado)}</small>
                         </div>
                         <div class="d-flex align-items-center">
                             <button type="button" class="btn btn-sm btn-outline-danger me-2" onclick="cambiarCantidad(${index}, -1)">
                                 <i class="fas fa-minus"></i>
                             </button>
                             <input type="number" class="form-control form-control-sm text-center mx-2" 
-                                   style="width: 80px;" min="1" max="${item.disponible}" 
-                                   value="${item.cantidad}" 
+                                   style="width: 80px;" min="1" max="${Math.floor(item.disponible / 30)}" 
+                                   value="${Math.floor(item.cantidad / 30)}" 
                                    onchange="actualizarCantidad(${index}, this.value)"
                                    oninput="this.value = this.value.replace(/[^0-9]/g, '')">
                             <button type="button" class="btn btn-sm btn-outline-success me-2" onclick="cambiarCantidad(${index}, 1)">
@@ -354,11 +355,20 @@ function actualizarCarrito() {
                         </div>
                     </div>
                     <div class="mt-2">
-                        <small class="text-muted">Subtotal producto: $${formatearMoneda(item.subtotal)}</small>
+                        <div class="row g-2 align-items-center">
+                            <div class="col-auto">
+                                <small class="text-muted">Subtotal producto:</small>
+                            </div>
+                            <div class="col">
+                                <input type="text" class="form-control form-control-sm text-end"
+                                       value="${formatearMoneda(item.subtotal)}"
+                                       onchange="actualizarSubtotalProducto(${index}, this.value)">
+                            </div>
+                        </div>
                     </div>
                     <div class="text-end mt-1">
                         <strong>$${formatearMoneda(item.subtotal)}</strong>
-                        <br><small class="text-muted">${Math.floor(item.cantidad / 30)} paneles, ${item.cantidad % 30} huevos</small>
+                        <br><small class="text-muted">${Math.floor(item.cantidad / 30)} panales - ${item.cantidad} huevos</small>
                     </div>
                 </div>
             </div>
@@ -367,7 +377,7 @@ function actualizarCarrito() {
     
     contenedor.innerHTML = html;
     document.getElementById('resumenVenta').style.display = 'block';
-    document.getElementById('subtotalRecomendado').textContent = formatearMoneda(subtotal);
+    document.getElementById('subtotalRecomendado').value = formatearMoneda(subtotal);
     document.getElementById('subtotalManual').value = formatearMoneda(subtotal);
     
     calcularTotal();
@@ -376,7 +386,7 @@ function actualizarCarrito() {
 // Cambiar cantidad de producto
 function cambiarCantidad(index, delta) {
     const item = carrito[index];
-    const nuevaCantidad = item.cantidad + delta;
+    const nuevaCantidad = item.cantidad + (delta * 30);
     
     if (nuevaCantidad <= 0) {
         eliminarProducto(index);
@@ -384,13 +394,13 @@ function cambiarCantidad(index, delta) {
     }
     
     if (nuevaCantidad > item.disponible) {
-        alert('No hay suficientes unidades disponibles');
+        alert('No hay suficientes panales disponibles');
         return;
     }
     
     item.cantidad = nuevaCantidad;
     item.subtotal_recomendado = item.cantidad * item.precio_recomendado;
-    item.subtotal = item.subtotal_recomendado;
+    item.subtotal = item.cantidad * item.precio_unitario_ajustado;
     
     actualizarCarrito();
 }
@@ -398,25 +408,36 @@ function cambiarCantidad(index, delta) {
 // Actualizar cantidad directamente desde el input
 function actualizarCantidad(index, valor) {
     const item = carrito[index];
-    let nuevaCantidad = parseInt(valor) || 0;
+    let paneles = parseInt(valor) || 0;
     
     // Validar que sea un número válido
-    if (nuevaCantidad <= 0) {
-        alert('La cantidad debe ser mayor a cero');
+    if (paneles <= 0) {
+        alert('La cantidad de panales debe ser mayor a cero');
         actualizarCarrito();
         return;
     }
-    
+    let nuevaCantidad = paneles * 30;
     // Validar que no exceda el disponible
     if (nuevaCantidad > item.disponible) {
-        alert(`Solo hay ${item.disponible} huevos disponibles`);
-        nuevaCantidad = item.disponible;
+        alert(`Solo hay ${Math.floor(item.disponible / 30)} panales disponibles`);
+        nuevaCantidad = Math.floor(item.disponible / 30) * 30;
     }
     
     item.cantidad = nuevaCantidad;
     item.subtotal_recomendado = item.cantidad * item.precio_recomendado;
-    item.subtotal = item.subtotal_recomendado;
+    item.subtotal = item.cantidad * item.precio_unitario_ajustado;
     
+    actualizarCarrito();
+}
+
+function actualizarSubtotalProducto(index, valor) {
+    const item = carrito[index];
+    let subtotalProducto = parsearMoneda(valor);
+    if (!Number.isFinite(subtotalProducto) || subtotalProducto <= 0) {
+        subtotalProducto = item.subtotal_recomendado;
+    }
+    item.subtotal = subtotalProducto;
+    item.precio_unitario_ajustado = item.cantidad > 0 ? (item.subtotal / item.cantidad) : item.precio_recomendado;
     actualizarCarrito();
 }
 
@@ -430,13 +451,7 @@ function eliminarProducto(index) {
 function calcularTotal() {
     const subtotalInput = document.getElementById('subtotalManual');
     const descuentoInput = document.getElementById('descuento');
-    let subtotalManual = parsearMoneda(subtotalInput.value);
-    
-    if (isNaN(subtotalManual) || subtotalManual <= 0) {
-        subtotalManual = subtotal;
-        subtotalInput.value = formatearMoneda(subtotal);
-    }
-    
+    const subtotalManual = subtotal;
     const descuento = parsearMoneda(descuentoInput.value) || 0;
     const total = subtotalManual - descuento;
     
@@ -485,7 +500,6 @@ function procesarVenta() {
         cliente_id: clienteSeleccionado ? clienteSeleccionado.id : null,
         descuento: parsearMoneda(document.getElementById('descuento').value) || 0,
         observaciones: document.getElementById('observaciones').value,
-        subtotal_general: parsearMoneda(document.getElementById('subtotalManual').value) || subtotal,
         detalles: carrito.map(item => ({
             categoria_id: item.id,
             cantidad_huevos: item.cantidad,
@@ -508,7 +522,8 @@ function procesarVenta() {
     
     // Enviar solicitud
     const csrfToken = document.querySelector('[name=csrf_token]')?.value;
-    fetch('/ventas/procesar', {
+    const endpoint = modoEdicion ? `/ventas/actualizar/${ventaEdicionId}` : '/ventas/procesar';
+    fetch(endpoint, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -519,7 +534,8 @@ function procesarVenta() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            alert(`Venta procesada exitosamente.\nNúmero: ${data.numero_venta}\nTotal: $${formatearMoneda(data.total)}`);
+            const accion = modoEdicion ? 'actualizada' : 'procesada';
+            alert(`Venta ${accion} exitosamente.\nNúmero: ${data.numero_venta}\nTotal: $${formatearMoneda(data.total)}`);
             
             // Limpiar carrito y recargar página
             carrito = [];
@@ -534,7 +550,9 @@ function procesarVenta() {
     })
     .finally(() => {
         document.getElementById('btnProcesar').disabled = false;
-        document.getElementById('btnProcesar').innerHTML = '<i class="fas fa-check-circle me-1"></i>Procesar Venta';
+        document.getElementById('btnProcesar').innerHTML = modoEdicion
+            ? '<i class="fas fa-check-circle me-1"></i>Actualizar Venta'
+            : '<i class="fas fa-check-circle me-1"></i>Procesar Venta';
     });
 }
 
@@ -702,7 +720,31 @@ function crearClienteRapido() {
 
 // Inicializar
 document.addEventListener('DOMContentLoaded', function() {
+    if (modoEdicion) {
+        if (Array.isArray(carritoInicial) && carritoInicial.length > 0) {
+            carrito = carritoInicial.map(item => ({
+                id: Number(item.id),
+                nombre: item.nombre,
+                precio_recomendado: Number(item.precio_recomendado || 0),
+                precio_unitario_ajustado: (Number(item.cantidad || 0) > 0) ? (Number(item.subtotal || 0) / Number(item.cantidad || 0)) : Number(item.precio_recomendado || 0),
+                cantidad: Number(item.cantidad || 0),
+                disponible: Number(item.disponible || 0),
+                subtotal_recomendado: Number(item.subtotal_recomendado || 0),
+                subtotal: Number(item.subtotal || 0)
+            }));
+        }
+        if ({{ 'true' if venta_editar and venta_editar.tipo_pago == 'credito' else 'false' }}) {
+            document.getElementById('credito').checked = true;
+            cambiarTipoVenta();
+            if (clienteInicial) {
+                seleccionarCliente(clienteInicial);
+            }
+        }
+        document.getElementById('descuento').value = formatearMoneda({{ venta_editar.descuento|float if venta_editar else 0 }});
+        document.getElementById('observaciones').value = {{ (venta_editar.observaciones if venta_editar else '')|tojson }};
+    }
     actualizarCarrito();
+    calcularTotal();
 });
 </script>
 {% endblock %}

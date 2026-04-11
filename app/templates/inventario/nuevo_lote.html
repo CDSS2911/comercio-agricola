@@ -65,7 +65,7 @@
                                     <option value="">Sin lote de gallinas</option>
                                     {% for lote_g in lotes_gallinas %}
                                     <option value="{{ lote_g.id }}">
-                                        {{ lote_g.numero_lote }} ({{ lote_g.cantidad_actual }} gallinas | Semana {{ lote_g.get_semanas_produccion() }})
+                                        {{ lote_g.ubicacion or lote_g.numero_lote }} ({{ lote_g.cantidad_actual }} gallinas | Semana {{ lote_g.get_semanas_produccion() }})
                                     </option>
                                     {% endfor %}
                                 </select>
